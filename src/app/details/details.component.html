@@ -1,0 +1,16 @@
+<article>
+    <img [src]="deliveryItem?.imageUrl" alt="Exterior photo of {{ deliveryItem?.name }}"
+        crossorigin />
+    <section>
+        <h2>{{ deliveryItem?.name }}</h2>
+        <p>{{ deliveryItem?.destinationAddress }}, {{ deliveryItem?.originFacility?.name }}</p>
+    </section>
+    <section>
+        <h2>About</h2>
+        <ul>
+            <li>{{ deliveryItem?.description }}</li>
+            <li>Price: {{ deliveryItem?.price }}</li>
+            <li>Weight: {{ deliveryItem?.weight }}</li>
+        </ul>
+    </section>
+</article>
