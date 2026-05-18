@@ -1,0 +1,7 @@
+<a [routerLink]="['/item', deliveryItem().id]">
+    <img [src]="deliveryItem().imageUrl" alt="Exterior photo of {{ deliveryItem().name }}"
+        crossorigin />
+
+    <h2>{{ deliveryItem().name }}</h2>
+    <p>{{ deliveryItem().destinationAddress }}</p>
+</a>
