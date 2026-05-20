@@ -25,7 +25,7 @@ export class HomeComponent {
     });
 
     constructor(){
-        this.deliveryItems = this.deliveriesService.getAllDeliveryItems();
+        this.deliveriesService.getAllDeliveryItems().then(items => this.deliveryItems = items);
     }
 
     submitDeliveryItem(): void {
@@ -37,7 +37,7 @@ export class HomeComponent {
             this.applyForm.value.originFacilityId ?? 0,
             this.applyForm.value.destinationAddress ?? '',
         );
-        this.deliveryItems = this.deliveriesService.getAllDeliveryItems();
+        this.deliveriesService.getAllDeliveryItems().then(items => this.deliveryItems = items);
         this.applyForm.reset();
     }
 }

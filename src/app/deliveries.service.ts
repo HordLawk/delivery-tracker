@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Deliveryitem } from './deliveryitem';
+import { environment } from '../environments/environment.development';
 
 @Injectable({
     providedIn: 'root'
@@ -27,8 +28,9 @@ export class DeliveriesService {
         },
     ];
 
-    getAllDeliveryItems(): Deliveryitem[] { 
-        return this.deliveryItems;  
+    async getAllDeliveryItems(): Promise<Deliveryitem[]> { 
+        const response = await fetch(`${environment.apiURL}/items`);
+        return response.json();
     }
 
     getDeliveryItemById(id: number): Deliveryitem | undefined {
