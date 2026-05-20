@@ -33,8 +33,10 @@ export class DeliveriesService {
         return response.json();
     }
 
-    getDeliveryItemById(id: number): Deliveryitem | undefined {
-        return this.deliveryItems.find(item => item.id === id);
+    async getDeliveryItemById(id: number): Promise<Deliveryitem | null> {
+        const response = await fetch(`${environment.apiURL}/items/${id}`);
+        if(response.ok) return response.json();
+        return null;
     }
 
     submitDeliveryItem(name: string, description: string, price: number, weight: number, originFacilityId: number, destinationAddress: string): void {

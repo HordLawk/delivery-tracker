@@ -11,11 +11,11 @@ import { DeliveriesService } from '../deliveries.service';
 })
 export class DetailsComponent {
     route: ActivatedRoute = inject(ActivatedRoute);
-    deliveryItem: Deliveryitem | undefined;
+    deliveryItem: Deliveryitem | null = null;
     deliveriesService = inject(DeliveriesService);
 
     constructor() {
         const deliveryItemId = Number(this.route.snapshot.paramMap.get('id'));
-        this.deliveryItem = this.deliveriesService.getDeliveryItemById(deliveryItemId);
+        this.deliveriesService.getDeliveryItemById(deliveryItemId).then((item) => this.deliveryItem = item);
     }
 }

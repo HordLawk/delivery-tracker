@@ -7,6 +7,7 @@ import {
 import express from 'express';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Deliveryitem } from './app/deliveryitem';
 
 const serverDistFolder = dirname(fileURLToPath(import.meta.url));
 const browserDistFolder = resolve(serverDistFolder, '../browser');
@@ -26,26 +27,37 @@ const angularApp = new AngularNodeAppEngine();
  * ```
  */
 
-app.get('/api/items', (req, res) => {
-    res.json([
-        {
+const deliveryItems: Deliveryitem[] = [
+    {
+        id: 1,
+        name: 'Sample Delivery Item',
+        description: 'This is a sample delivery item',
+        price: 100,
+        imageUrl: 'https://placehold.co/400',
+        status: 0,
+        startedAt: new Date(),
+        endedAt: null,
+        weight: 10,
+        originFacility: {
             id: 1,
-            name: 'Sample Delivery Item',
-            description: 'This is a sample delivery item',
-            price: 100,
-            imageUrl: 'https://placehold.co/400',
-            status: 0,
-            startedAt: new Date(),
-            endedAt: null,
-            weight: 10,
-            originFacility: {
-                id: 1,
-                name: 'Sample Facility',
-                sectorId: 1
-            },
-            destinationAddress: '123 Sample Street, Sample City'
+            name: 'Sample Facility',
+            sectorId: 1
         },
-    ]);
+        destinationAddress: '123 Sample Street, Sample City'
+    },
+];
+
+app.get('/api/items', (req, res) => {
+    res.json(deliveryItems);
+});
+
+app.get('/api/items/:id', (req, res) => {
+    const itemId = parseInt(req.params.id, 10);
+    if(!isNaN(itemId)){
+        const item = deliveryItems.find((i) => i.id === itemId);
+        if(item) return res.json(item);
+    }
+    return res.status(404).json({ error: 'Item not found' });
 });
 
 /**
