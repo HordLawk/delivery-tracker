@@ -8,12 +8,37 @@ import express from 'express';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Deliveryitem } from './app/deliveryitem';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import crypto from 'node:crypto';
+import session from 'express-session';
+import { User } from './app/user.interface';
+import jwt from 'jsonwebtoken';
+import {OAuth2Client} from 'google-auth-library';
+
+declare module 'express-session' {
+    interface SessionData {
+        _state?: string;
+    }
+}
 
 const serverDistFolder = dirname(fileURLToPath(import.meta.url));
 const browserDistFolder = resolve(serverDistFolder, '../browser');
 
 const app = express();
+app.use(cookieParser());
+app.use(session({
+    secret: crypto.randomBytes(32).toString('hex'),
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        secure: (process.env['NODE_ENV'] === 'production'),
+    }
+}));
+if(process.env['NODE_ENV'] !== 'production') app.use(cors());
 const angularApp = new AngularNodeAppEngine();
+const client = new OAuth2Client();
 
 /**
  * Example Express Rest API endpoints can be defined here.
@@ -46,6 +71,62 @@ const deliveryItems: Deliveryitem[] = [
         destinationAddress: '123 Sample Street, Sample City'
     },
 ];
+
+const users: User[] = [];
+
+app.get('/api/session', async (req, res) => {
+    try{
+        if(!req.session._state || !req.cookies['AUTH']) throw new Error('No session or auth cookie');
+        await client.verifyIdToken({
+            idToken: req.cookies['AUTH'],
+            audience: process.env['GOOGLE_CLIENT_ID']
+        });
+        return res.sendStatus(204);
+    } catch(err) {
+        const state = crypto.randomBytes(32).toString('hex');
+        req.session._state = state;
+        return res.status(201).json({ state });
+    }
+});
+
+app.get('/auth/callback', async (req, res) => {
+    const { code, state } = req.query;
+    if(!code || (typeof code !== 'string') || !state || (typeof state !== 'string')){
+        return res.status(401).json({ error: 'Missing code or state' });
+    }
+    const [sessionState, redirectUrl] = state.split('--');
+    if(!redirectUrl || (sessionState !== req.session._state)) return res.status(401).json({ error: 'Invalid state' });
+    const openidConfigResponse = await fetch('https://accounts.google.com/.well-known/openid-configuration');
+    if(!openidConfigResponse.ok) return res.status(500).json({ error: 'Failed to fetch OpenID Connect configuration' });
+    const openidConfig = await openidConfigResponse.json();
+    const tokensResponse = await fetch(openidConfig.token_endpoint, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({
+            code,
+            client_id: process.env['GOOGLE_CLIENT_ID'] ?? '',
+            client_secret: process.env['GOOGLE_CLIENT_SECRET'] ?? '',
+            redirect_uri: `${process.env['BASE_URL']}/auth/callback`,
+            grant_type: 'authorization_code',
+        }),
+    });
+    if(!tokensResponse.ok) return res.status(500).json({ error: 'Failed to exchange code for tokens' });
+    const tokens = await tokensResponse.json();
+    const decodedIdToken = jwt.decode(tokens.id_token) as jwt.JwtPayload & {sub: string, name: string, picture: string};
+    if(!decodedIdToken || !decodedIdToken.sub) return res.status(401).json({ error: 'Invalid ID token' });
+    if(!users.some(u => u.id === decodedIdToken.sub)){
+        users.push({
+            id: decodedIdToken.sub,
+            name: decodedIdToken.name,
+            pictureUrl: decodedIdToken.picture,
+        });
+    }
+    return res.cookie('AUTH', tokens.id_token, {
+        httpOnly: true,
+        secure: (process.env['NODE_ENV'] === 'production'),
+        maxAge: tokens.expires_in,
+    }).redirect(redirectUrl || '/');
+});
 
 app.get('/api/items', (req, res) => {
     res.json(deliveryItems);
