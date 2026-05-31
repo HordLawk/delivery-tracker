@@ -74,12 +74,25 @@ const deliveryItems: Deliveryitem[] = [
 
 const users: User[] = [];
 
+const authMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    try{
+        if(!req.session._state || !req.cookies['AUTH']) throw new Error('No session or auth cookie');
+        await client.verifyIdToken({
+            idToken: req.cookies['AUTH'],
+            audience: process.env['GOOGLE_CLIENT_ID'],
+        });
+        next();
+    } catch(err) {
+        res.status(401).json({ error: 'Unauthorized' });
+    }
+}
+
 app.get('/api/session', async (req, res) => {
     try{
         if(!req.session._state || !req.cookies['AUTH']) throw new Error('No session or auth cookie');
         await client.verifyIdToken({
             idToken: req.cookies['AUTH'],
-            audience: process.env['GOOGLE_CLIENT_ID']
+            audience: process.env['GOOGLE_CLIENT_ID'],
         });
         return res.sendStatus(204);
     } catch(err) {
@@ -128,12 +141,12 @@ app.get('/auth/callback', async (req, res) => {
     }).redirect(redirectUrl || '/');
 });
 
-app.get('/api/items', (req, res) => {
+app.get('/api/items', authMiddleware, (req, res) => {
     res.json(deliveryItems);
 });
 
-app.get('/api/items/:id', (req, res) => {
-    const itemId = parseInt(req.params.id, 10);
+app.get('/api/items/:id', authMiddleware, (req, res) => {
+    const itemId = parseInt(req.params['id'], 10);
     if(!isNaN(itemId)){
         const item = deliveryItems.find((i) => i.id === itemId);
         if(item) return res.json(item);

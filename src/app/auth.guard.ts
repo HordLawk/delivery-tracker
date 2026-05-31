@@ -19,5 +19,5 @@ export const authGuard: CanActivateFn = async (route, state) => {
         `&scope=openid%20email%20profile&redirect_uri=${environment.baseURL}/auth/callback` +
         `&state=${data.state}--${state.url}&nonce=${Math.floor(Math.random() * 1000000)}`
     );
-    return false;
+    return true;
 };
