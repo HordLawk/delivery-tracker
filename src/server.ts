@@ -76,7 +76,7 @@ const users: User[] = [];
 
 const authMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     try{
-        if(!req.session._state || !req.cookies['AUTH']) throw new Error('No session or auth cookie');
+        if(!req.cookies['AUTH']) throw new Error('No session or auth cookie');
         await client.verifyIdToken({
             idToken: req.cookies['AUTH'],
             audience: process.env['GOOGLE_CLIENT_ID'],
@@ -89,7 +89,7 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
 
 app.get('/api/session', async (req, res) => {
     try{
-        if(!req.session._state || !req.cookies['AUTH']) throw new Error('No session or auth cookie');
+        if(!req.cookies['AUTH']) throw new Error('No session or auth cookie');
         await client.verifyIdToken({
             idToken: req.cookies['AUTH'],
             audience: process.env['GOOGLE_CLIENT_ID'],
@@ -137,7 +137,7 @@ app.get('/auth/callback', async (req, res) => {
     return res.cookie('AUTH', tokens.id_token, {
         httpOnly: true,
         secure: (process.env['NODE_ENV'] === 'production'),
-        maxAge: tokens.expires_in,
+        maxAge: tokens.expires_in * 1_000,
     }).redirect(redirectUrl || '/');
 });
 
