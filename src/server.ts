@@ -74,41 +74,45 @@ const deliveryItems: Deliveryitem[] = [
 
 const users: User[] = [];
 
+const verifyToken = async (idToken: string) => {
+    if(!idToken) throw new Error('No auth cookie');
+    await client.verifyIdToken({
+        idToken,
+        audience: process.env['GOOGLE_CLIENT_ID'],
+    });
+}
+
 const authMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     try{
-        if(!req.cookies['AUTH']) throw new Error('No session or auth cookie');
-        await client.verifyIdToken({
-            idToken: req.cookies['AUTH'],
-            audience: process.env['GOOGLE_CLIENT_ID'],
-        });
+        await verifyToken(req.cookies['AUTH']);
         next();
-    } catch(err) {
-        res.status(401).json({ error: 'Unauthorized' });
+    }
+    catch(err) {
+        res.status(401).json({ error: 'Invalid auth cookie' });
     }
 }
 
 app.get('/api/session', async (req, res) => {
     try{
-        if(!req.cookies['AUTH']) throw new Error('No session or auth cookie');
-        await client.verifyIdToken({
-            idToken: req.cookies['AUTH'],
-            audience: process.env['GOOGLE_CLIENT_ID'],
-        });
-        return res.sendStatus(204);
-    } catch(err) {
+        await verifyToken(req.cookies['AUTH']);
+        res.sendStatus(204);
+    }
+    catch(err) {
         const state = crypto.randomBytes(32).toString('hex');
         req.session._state = state;
-        return res.status(201).json({ state });
+        res.status(201).json({ state });
     }
 });
 
 app.get('/auth/callback', async (req, res) => {
     const { code, state } = req.query;
     if(!code || (typeof code !== 'string') || !state || (typeof state !== 'string')){
-        return res.status(401).json({ error: 'Missing code or state' });
+        return res.status(400).json({ error: 'Missing code or state parameter' });
     }
     const [sessionState, redirectUrl] = state.split('--');
-    if(!redirectUrl || (sessionState !== req.session._state)) return res.status(401).json({ error: 'Invalid state' });
+    if(!redirectUrl || (sessionState !== req.session._state)){
+        return res.status(400).json({ error: 'Invalid state parameter' });
+    }
     const openidConfigResponse = await fetch('https://accounts.google.com/.well-known/openid-configuration');
     if(!openidConfigResponse.ok) return res.status(500).json({ error: 'Failed to fetch OpenID Connect configuration' });
     const openidConfig = await openidConfigResponse.json();
@@ -126,7 +130,7 @@ app.get('/auth/callback', async (req, res) => {
     if(!tokensResponse.ok) return res.status(500).json({ error: 'Failed to exchange code for tokens' });
     const tokens = await tokensResponse.json();
     const decodedIdToken = jwt.decode(tokens.id_token) as jwt.JwtPayload & {sub: string, name: string, picture: string};
-    if(!decodedIdToken || !decodedIdToken.sub) return res.status(401).json({ error: 'Invalid ID token' });
+    if(!decodedIdToken || !decodedIdToken.sub) return res.status(500).json({ error: 'Failed to exchange code for tokens' });
     if(!users.some(u => u.id === decodedIdToken.sub)){
         users.push({
             id: decodedIdToken.sub,
@@ -141,7 +145,7 @@ app.get('/auth/callback', async (req, res) => {
     }).redirect(redirectUrl || '/');
 });
 
-app.get('/api/items', authMiddleware, (req, res) => {
+app.get('/api/items', authMiddleware, (_, res) => {
     res.json(deliveryItems);
 });
 
