@@ -7,14 +7,14 @@ import {
 import express from 'express';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Deliveryitem } from './app/deliveryitem';
-import cors from 'cors';
+import { Deliveryitem } from './app/deliveryitem.interface';
 import cookieParser from 'cookie-parser';
 import crypto from 'node:crypto';
 import session from 'express-session';
 import { User } from './app/user.interface';
 import jwt from 'jsonwebtoken';
-import {OAuth2Client} from 'google-auth-library';
+import postgres from 'postgres';
+import * as jose from 'jose'
 
 declare module 'express-session' {
     interface SessionData {
@@ -22,8 +22,27 @@ declare module 'express-session' {
     }
 }
 
+declare global{
+    namespace Express {
+        interface Request {
+            sub?: string;
+        }
+    }
+}
+
+declare module 'express' {
+    interface Request {
+        sub?: string;
+    }
+}
+
 const serverDistFolder = dirname(fileURLToPath(import.meta.url));
 const browserDistFolder = resolve(serverDistFolder, '../browser');
+
+const sql = postgres(process.env['DATABASE_URL'] ?? '', {
+    types: {bigint: postgres.BigInt},
+    transform: postgres.camel,
+});
 
 const app = express();
 app.use(cookieParser());
@@ -36,9 +55,11 @@ app.use(session({
         secure: (process.env['NODE_ENV'] === 'production'),
     }
 }));
-if(process.env['NODE_ENV'] !== 'production') app.use(cors());
+app.use((req, _, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+})
 const angularApp = new AngularNodeAppEngine();
-const client = new OAuth2Client();
 
 /**
  * Example Express Rest API endpoints can be defined here.
@@ -52,44 +73,49 @@ const client = new OAuth2Client();
  * ```
  */
 
-const deliveryItems: Deliveryitem[] = [
-    {
-        id: 1,
-        name: 'Sample Delivery Item',
-        description: 'This is a sample delivery item',
-        price: 100,
-        imageUrl: 'https://placehold.co/400',
-        status: 0,
-        startedAt: new Date(),
-        endedAt: null,
-        weight: 10,
-        originFacility: {
-            id: 1,
-            name: 'Sample Facility',
-            sectorId: 1
-        },
-        destinationAddress: '123 Sample Street, Sample City'
-    },
-];
-
-const users: User[] = [];
+const openidConfigResponse = await fetch('https://accounts.google.com/.well-known/openid-configuration');
+if(!openidConfigResponse.ok){
+    console.trace(await openidConfigResponse.text());
+    process.exit(1);
+}
+const openidConfig = await openidConfigResponse.json();
+const openidKeysResponse = await fetch(openidConfig.jwks_uri);
+if(!openidKeysResponse.ok){
+    console.trace(await openidKeysResponse.text());
+    process.exit(1);
+}
+const openidKeys = jose.createRemoteJWKSet(new URL(openidConfig.jwks_uri));
 
 const verifyToken = async (idToken: string) => {
-    if(!idToken) throw new Error('No auth cookie');
-    await client.verifyIdToken({
-        idToken,
+    if(!idToken) throw new Error('Invalid token');
+    const {payload} = await jose.jwtVerify<jose.JWTPayload & {name: string, picture: string}>(idToken, openidKeys, {
         audience: process.env['GOOGLE_CLIENT_ID'],
+        issuer: ['https://accounts.google.com', 'accounts.google.com'],
     });
+    return payload;
 }
 
 const authMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     try{
-        await verifyToken(req.cookies['AUTH']);
+        const decodedToken = await verifyToken(req.cookies['AUTH']);
+        req.sub = decodedToken.sub;
         next();
     }
     catch(err) {
         res.status(401).json({ error: 'Invalid auth cookie' });
     }
+}
+
+const selectUserItems = async (sub: string, id?: string) => {
+    return await sql`
+        SELECT
+            i.*,
+            f.name
+        FROM items i
+        INNER JOIN facilities f ON i.origin_facility_id = f.id
+        INNER JOIN users u ON f.sector_id = u.sector_id
+        WHERE u.sub = ${sub} ${id ? sql`AND i.id = ${id}` : sql``}
+    `
 }
 
 app.get('/api/session', async (req, res) => {
@@ -113,9 +139,6 @@ app.get('/auth/callback', async (req, res) => {
     if(!redirectUrl || (sessionState !== req.session._state)){
         return res.status(400).json({ error: 'Invalid state parameter' });
     }
-    const openidConfigResponse = await fetch('https://accounts.google.com/.well-known/openid-configuration');
-    if(!openidConfigResponse.ok) return res.status(500).json({ error: 'Failed to fetch OpenID Connect configuration' });
-    const openidConfig = await openidConfigResponse.json();
     const tokensResponse = await fetch(openidConfig.token_endpoint, {
         method: 'POST',
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -127,35 +150,39 @@ app.get('/auth/callback', async (req, res) => {
             grant_type: 'authorization_code',
         }),
     });
-    if(!tokensResponse.ok) return res.status(500).json({ error: 'Failed to exchange code for tokens' });
+    if(!tokensResponse.ok){
+        console.log(await tokensResponse.text());
+        return res.status(500).json({ error: 'Failed to exchange code for tokens' });
+    }
     const tokens = await tokensResponse.json();
-    const decodedIdToken = jwt.decode(tokens.id_token) as jwt.JwtPayload & {sub: string, name: string, picture: string};
+    const decodedIdToken = await verifyToken(tokens.id_token);
     if(!decodedIdToken || !decodedIdToken.sub) return res.status(500).json({ error: 'Failed to exchange code for tokens' });
-    if(!users.some(u => u.id === decodedIdToken.sub)){
-        users.push({
-            id: decodedIdToken.sub,
+    const [user] = await sql<User[]>`SELECT * FROM users WHERE sub = ${decodedIdToken.sub}`;
+    if(!user){
+        const newUser = {
+            sub: decodedIdToken.sub,
             name: decodedIdToken.name,
             pictureUrl: decodedIdToken.picture,
-        });
+        }
+        await sql`INSERT INTO users ${sql(newUser)}`;
     }
     return res.cookie('AUTH', tokens.id_token, {
         httpOnly: true,
         secure: (process.env['NODE_ENV'] === 'production'),
-        maxAge: tokens.expires_in * 1_000,
+        maxAge: decodedIdToken.exp ? (decodedIdToken.exp * 1_000) : (Date.now() + (1_000 * 60 * 60)),
     }).redirect(redirectUrl || '/');
 });
 
-app.get('/api/items', authMiddleware, (_, res) => {
-    res.json(deliveryItems);
+app.get('/api/items', authMiddleware, async (req, res) => {
+    if(!req.sub) return res.sendStatus(500);
+    const items = await selectUserItems(req.sub);
+    return res.json(items);
 });
 
-app.get('/api/items/:id', authMiddleware, (req, res) => {
-    const itemId = parseInt(req.params['id'], 10);
-    if(!isNaN(itemId)){
-        const item = deliveryItems.find((i) => i.id === itemId);
-        if(item) return res.json(item);
-    }
-    return res.status(404).json({ error: 'Item not found' });
+app.get('/api/items/:id', authMiddleware, async (req, res) => {
+    if(!req.sub) return res.sendStatus(500);
+    const [item] = await selectUserItems(req.sub, req.params['id']);
+    return res.json(item);
 });
 
 /**

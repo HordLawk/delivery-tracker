@@ -5,12 +5,12 @@ import { DeliveriesService } from '../deliveries.service';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
 @Component({
-    selector: 'app-home',
+  selector: 'app-deliveries',
     imports: [DeliveryItemComponent, ReactiveFormsModule],
-    templateUrl: './home.component.html',
-    styleUrl: './home.component.css'
+  templateUrl: './deliveries.component.html',
+  styleUrl: './deliveries.component.css'
 })
-export class HomeComponent {
+export class DeliveriesComponent {
     deliveryItems: Deliveryitem[] = [];
 
     deliveriesService = inject(DeliveriesService);
@@ -29,6 +29,14 @@ export class HomeComponent {
     }
 
     submitDeliveryItem(): void {
+        // this.deliveriesService.submitDeliveryItem(
+        //     this.applyForm.value.name ?? '',
+        //     this.applyForm.value.description ?? '',
+        //     this.applyForm.value.price ?? 0,
+        //     this.applyForm.value.weight ?? 0,
+        //     this.applyForm.value.originFacilityId ?? 0,
+        //     this.applyForm.value.destinationAddress ?? '',
+        // );
         this.deliveriesService.getAllDeliveryItems().then(items => this.deliveryItems = items);
         this.applyForm.reset();
     }

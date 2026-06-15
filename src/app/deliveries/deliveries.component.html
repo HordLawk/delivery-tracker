@@ -1,0 +1,34 @@
+<section>
+    <form>
+        <input type="text" placeholder="Search..." />
+        <button type="button">Search</button>
+    </form>
+</section>
+<section>
+    @for (item of deliveryItems; track $index) {
+        <app-delivery-item [deliveryItem]="item" />
+    }
+</section>
+<section>
+    <h2>Create delivery item</h2>
+    <form [formGroup]="applyForm" (submit)="submitDeliveryItem()">
+        <label for="name">Name</label>
+        <input id="name" type="text" formControlName="name" />
+
+        <label for="description">Description</label>
+        <input id="description" type="text" formControlName="description" />
+
+        <label for="price">Price</label>
+        <input id="price" type="number" formControlName="price" />
+
+        <label for="weight">Weight</label>
+        <input id="weight" type="number" formControlName="weight" />
+
+        <label for="originFacilityId">Origin Facility ID</label>
+        <input id="originFacilityId" type="number" formControlName="originFacilityId" />
+
+        <label for="destinationAddress">Destination Address</label>
+        <input id="destinationAddress" type="text" formControlName="destinationAddress" />
+        <button type="submit">Create Item</button>
+    </form>
+</section>

@@ -1,3 +1,5 @@
+import { Sector } from "./sector.interface";
+
 enum Status {
     Scheduled,
     Available,
@@ -9,8 +11,9 @@ enum Status {
 
 interface Facility {
     id: number;
-    name?: string;
-    sectorId?: number;
+    name: string;
+    sectorId: string;
+    sector?: Sector;
 }
 
 export interface Deliveryitem {
@@ -23,6 +26,7 @@ export interface Deliveryitem {
     startedAt: Date;
     endedAt: Date | null;
     weight: number;
-    originFacility: Facility;
+    originFacilityId: number;
+    originFacility?: Facility;
     destinationAddress: string;
 }

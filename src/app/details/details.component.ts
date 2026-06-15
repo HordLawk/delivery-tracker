@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { Deliveryitem } from '../deliveryitem';
+import { Deliveryitem } from '../deliveryitem.interface';
 import { DeliveriesService } from '../deliveries.service';
 
 @Component({
