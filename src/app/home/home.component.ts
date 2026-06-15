@@ -1,35 +1,42 @@
 import { Component, inject } from '@angular/core';
-import { DeliveryItemComponent } from '../delivery-item/delivery-item.component';
-import { Deliveryitem } from '../deliveryitem.interface';
-import { DeliveriesService } from '../deliveries.service';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { environment } from '../../environments/environment';
+import { Organization } from '../org.interface';
+
+const getOrganization = async () => {
+    const organizationsResponse = await fetch(`${environment.baseURL}/api/orgs`);
+    if(!organizationsResponse.ok) return;
+    const organizations: Organization[] = await organizationsResponse.json();
+    return organizations[0];
+}
 
 @Component({
     selector: 'app-home',
-    imports: [DeliveryItemComponent, ReactiveFormsModule],
+    imports: [ReactiveFormsModule],
     templateUrl: './home.component.html',
     styleUrl: './home.component.css'
 })
 export class HomeComponent {
-    deliveryItems: Deliveryitem[] = [];
 
-    deliveriesService = inject(DeliveriesService);
+    organization?: Organization;
 
-    applyForm = new FormGroup({
+    createOrgForm = new FormGroup({
         name: new FormControl(''),
-        description: new FormControl(''),
-        price: new FormControl(0),
-        weight: new FormControl(0),
-        originFacilityId: new FormControl(0),
-        destinationAddress: new FormControl(''),
     });
 
     constructor(){
-        this.deliveriesService.getAllDeliveryItems().then(items => this.deliveryItems = items);
+        getOrganization().then(org => this.organization = org);
     }
 
-    submitDeliveryItem(): void {
-        this.deliveriesService.getAllDeliveryItems().then(items => this.deliveryItems = items);
-        this.applyForm.reset();
+    async createOrganization() {
+        const organizationResponse = await fetch(`${environment.baseURL}/api/orgs`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: this.createOrgForm.value.name,
+            }),
+        });
+        if(!organizationResponse.ok) return;
+        this.organization = await organizationResponse.json();
     }
 }

@@ -14,6 +14,8 @@ import session from 'express-session';
 import { User } from './app/user.interface';
 import postgres from 'postgres';
 import * as jose from 'jose'
+import {body, query, validationResult} from 'express-validator'
+import { Organization } from './app/org.interface';
 
 declare module 'express-session' {
     interface SessionData {
@@ -45,6 +47,7 @@ const sql = postgres(process.env['DATABASE_URL'] ?? '', {
 
 const app = express();
 app.use(cookieParser());
+app.use(express.json());
 app.use(session({
     secret: crypto.randomBytes(32).toString('hex'),
     resave: false,
@@ -106,15 +109,21 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
 }
 
 const selectUserItems = async (sub: string, id?: string) => {
-    return await sql`
+    return await sql<(Deliveryitem & {originFacilityName: string})[]>`
         SELECT
             i.*,
-            f.name
+            f.name as origin_facility_name
         FROM items i
         INNER JOIN facilities f ON i.origin_facility_id = f.id
         INNER JOIN users u ON f.sector_id = u.sector_id
         WHERE u.sub = ${sub} ${id ? sql`AND i.id = ${id}` : sql``}
     `
+}
+
+const handleValidation = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const result = validationResult(req);
+    if(result.isEmpty()) return next();
+    return res.status(400).json({errors: result.array()});
 }
 
 app.get('/api/session', async (req, res) => {
@@ -129,11 +138,8 @@ app.get('/api/session', async (req, res) => {
     }
 });
 
-app.get('/auth/callback', async (req, res) => {
-    const { code, state } = req.query;
-    if(!code || (typeof code !== 'string') || !state || (typeof state !== 'string')){
-        return res.status(400).json({ error: 'Missing code or state parameter' });
-    }
+app.get('/auth/callback', query('code').notEmpty(), query('state').notEmpty(), handleValidation, async (req, res) => {
+    const { code, state } = req.query as {code: string, state: string};
     const [sessionState, redirectUrl] = state.split('--');
     if(!redirectUrl || (sessionState !== req.session._state)){
         return res.status(400).json({ error: 'Invalid state parameter' });
@@ -178,11 +184,63 @@ app.get('/api/items', authMiddleware, async (req, res) => {
     return res.json(items);
 });
 
-app.get('/api/items/:id', authMiddleware, async (req, res) => {
+app.get('/api/items/:id', query('id').isUUID(), handleValidation, authMiddleware, async (req, res) => {
     if(!req.sub) return res.sendStatus(500);
     const [item] = await selectUserItems(req.sub, req.params['id']);
     return res.json(item);
 });
+
+app.get('/api/orgs', authMiddleware, async (req, res) => {
+    if(!req.sub) return res.sendStatus(500);
+    const organizations = await sql<Organization[]>`
+        SELECT
+            o.*
+        FROM organizations o
+        INNER JOIN sectors s ON s.organization_id = o.id
+        INNER JOIN users u ON u.sector_id = s.id
+        WHERE u.sub = ${req.sub}
+    `
+    return res.status(200).json(organizations);
+});
+
+app.post(
+    '/api/orgs',
+    body('name').trim().notEmpty().isLength({max: 256}),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {name} = req.body as {name: string};
+        const [user] = await sql<{sectorId: string}[]>`
+            SELECT sector_id
+            FROM users
+            WHERE sub = ${sub}
+        `;
+        if(user.sectorId) return res.status(403).json({error: 'User is already part of an organization'});
+        const organization = await sql.begin(async sql => {
+            const newOrg = {
+                name,
+                owner_id: sub,
+            }
+            const [organization] = await sql<Organization[]>`INSERT INTO organizations ${sql(newOrg)} RETURNING *`;
+            const newSector = {
+                name: 'New Sector',
+                organization_id: organization['id'],
+            }
+            const [sector] = await sql<{id: string}[]>`INSERT INTO sectors ${sql(newSector)} RETURNING id`;
+            await sql`
+                UPDATE users
+                SET
+                    sector_id = ${sector['id']},
+                    role = 'MANAGER'
+                WHERE sub = ${sub}
+            `;
+            return organization;
+        });
+        return res.status(201).json(organization);
+    }
+);
 
 /**
  * Serve static files from /browser
