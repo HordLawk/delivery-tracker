@@ -1,8 +1,8 @@
 import { CanActivateFn } from '@angular/router';
-import { inject } from '@angular/core';
+import { inject, DOCUMENT } from '@angular/core';
 import { environment } from '../environments/environment';
 import { Session } from './api.interface';
-import { DOCUMENT } from '@angular/common';
+
 
 export const authGuard: CanActivateFn = async (route, state) => {
     const document = inject(DOCUMENT);
