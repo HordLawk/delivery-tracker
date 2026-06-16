@@ -1,5 +1,5 @@
 <article>
-    <img [src]="deliveryItem?.imageUrl" alt="Exterior photo of {{ deliveryItem?.name }}"
+    <img [src]="$safeNavigationMigration(deliveryItem?.imageUrl)" alt="Exterior photo of {{ deliveryItem?.name }}"
         crossorigin />
     <section>
         <h2>{{ deliveryItem?.name }}</h2>

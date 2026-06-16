@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Deliveryitem } from '../deliveryitem.interface';
 import { DeliveriesService } from '../deliveries.service';
@@ -7,6 +7,7 @@ import { DeliveriesService } from '../deliveries.service';
   selector: 'app-details',
   imports: [],
   templateUrl: './details.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './details.component.css'
 })
 export class DetailsComponent {

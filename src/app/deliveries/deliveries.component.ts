@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { DeliveryItemComponent } from '../delivery-item/delivery-item.component';
 import { Deliveryitem } from '../deliveryitem.interface';
 import { DeliveriesService } from '../deliveries.service';
@@ -8,6 +8,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
   selector: 'app-deliveries',
     imports: [DeliveryItemComponent, ReactiveFormsModule],
   templateUrl: './deliveries.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './deliveries.component.css'
 })
 export class DeliveriesComponent {
