@@ -1,4 +1,4 @@
-import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import {form, FormField} from '@angular/forms/signals';
 import { environment } from '../../environments/environment';
 import { Organization } from '../org.interface';
@@ -14,12 +14,11 @@ const getOrganization = async () => {
     selector: 'app-home',
     templateUrl: './home.component.html',
     styleUrl: './home.component.css',
-    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [FormField],
 })
 export class HomeComponent {
 
-    organizations: Organization[] = [];
+    organizations = signal<Organization[]>([]);
 
     orgModel = signal<{name: string}>({
         name: '',
@@ -28,7 +27,7 @@ export class HomeComponent {
     orgForm = form(this.orgModel);
 
     constructor(){
-        getOrganization().then(orgs => this.organizations = orgs);
+        getOrganization().then(orgs => this.organizations.set(orgs));
     }
 
     async createOrganization(event: Event) {
@@ -41,6 +40,7 @@ export class HomeComponent {
             }),
         });
         if(!organizationResponse.ok) return;
-        this.organizations.push(await organizationResponse.json());
+        const newOrg: Organization = await organizationResponse.json();
+        this.organizations.update(orgs => orgs.concat(newOrg));
     }
 }
