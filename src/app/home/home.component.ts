@@ -1,5 +1,5 @@
-import { Component, inject } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
+import {form, FormField} from '@angular/forms/signals';
 import { environment } from '../../environments/environment';
 import { Organization } from '../org.interface';
 
@@ -12,28 +12,32 @@ const getOrganization = async () => {
 
 @Component({
     selector: 'app-home',
-    imports: [ReactiveFormsModule],
     templateUrl: './home.component.html',
-    styleUrl: './home.component.css'
+    styleUrl: './home.component.css',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [FormField],
 })
 export class HomeComponent {
 
     organizations: Organization[] = [];
 
-    createOrgForm = new FormGroup({
-        name: new FormControl(''),
+    orgModel = signal<{name: string}>({
+        name: '',
     });
+
+    orgForm = form(this.orgModel);
 
     constructor(){
         getOrganization().then(orgs => this.organizations = orgs);
     }
 
-    async createOrganization() {
+    async createOrganization(event: Event) {
+        event.preventDefault();
         const organizationResponse = await fetch(`${environment.baseURL}/api/orgs`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                name: this.createOrgForm.value.name,
+                name: this.orgForm.name().value(),
             }),
         });
         if(!organizationResponse.ok) return;

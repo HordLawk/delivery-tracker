@@ -2,9 +2,9 @@
     @for(org of organizations; track org.id) {
         <h2>{{ org.name }}</h2>
     }
-    <form [formGroup]="createOrgForm" (submit)="createOrganization()">
+    <form (submit)="createOrganization($event)">
         <label for="name">Name</label>
-        <input id="name" type="text" formControlName="name" />
+        <input id="name" type="text" [formField]="orgForm.name" />
 
         <button type="submit">Create Org</button>
     </form>
