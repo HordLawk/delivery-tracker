@@ -1,13 +1,11 @@
 <section>
-    @if(organization){
-        <h1>{{ organization.name }}</h1>
+    @for(org of organizations; track org.id) {
+        <h2>{{ org.name }}</h2>
     }
-    @else{
-        <form [formGroup]="createOrgForm" (submit)="createOrganization()">
-            <label for="name">Name</label>
-            <input id="name" type="text" formControlName="name" />
+    <form [formGroup]="createOrgForm" (submit)="createOrganization()">
+        <label for="name">Name</label>
+        <input id="name" type="text" formControlName="name" />
 
-            <button type="submit">Create Org</button>
-        </form>
-    }
+        <button type="submit">Create Org</button>
+    </form>
 </section>

@@ -115,9 +115,13 @@ const selectUserItems = async (sub: string, id?: string) => {
             f.name as origin_facility_name
         FROM items i
         INNER JOIN facilities f ON i.origin_facility_id = f.id
-        INNER JOIN users u ON f.sector_id = u.sector_id
-        WHERE u.sub = ${sub} ${id ? sql`AND i.id = ${id}` : sql``}
-    `
+        INNER JOIN sectors s ON s.id = f.sector_id
+        INNER JOIN memberships m
+            ON m.organization_id = s.organization_id
+            AND (m.role = 'MANAGER' OR m.sector_id = s.id)
+            AND m.confirmed = TRUE
+        WHERE m.user_id = ${sub} ${id ? sql`AND i.id = ${id}` : sql``}
+    `;
 }
 
 const handleValidation = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -190,16 +194,16 @@ app.get('/api/items/:id', query('id').isUUID(), handleValidation, authMiddleware
     return res.json(item);
 });
 
-app.get('/api/orgs', authMiddleware, async (req, res) => {
+app.get('/api/orgs', query('confirmed').isBoolean().toBoolean(), handleValidation, authMiddleware, async (req, res) => {
     if(!req.sub) return res.sendStatus(500);
+    const {confirmed} = req.query as unknown as {confirmed: boolean};
     const organizations = await sql<Organization[]>`
         SELECT
             o.*
         FROM organizations o
-        INNER JOIN sectors s ON s.organization_id = o.id
-        INNER JOIN users u ON u.sector_id = s.id
-        WHERE u.sub = ${req.sub}
-    `
+        INNER JOIN memberships m ON m.organization_id = o.id
+        WHERE m.user_id = ${req.sub} AND m.confirmed = ${confirmed}
+    `;
     return res.status(200).json(organizations);
 });
 
@@ -212,30 +216,18 @@ app.post(
         if(!req.sub) return res.sendStatus(500);
         const sub = req.sub;
         const {name} = req.body as {name: string};
-        const [user] = await sql<{sectorId: string}[]>`
-            SELECT sector_id
-            FROM users
-            WHERE sub = ${sub}
-        `;
-        if(user.sectorId) return res.status(403).json({error: 'User is already part of an organization'});
         const organization = await sql.begin(async sql => {
             const newOrg = {
                 name,
-                owner_id: sub,
-            }
+                ownerId: sub,
+            };
             const [organization] = await sql<Organization[]>`INSERT INTO organizations ${sql(newOrg)} RETURNING *`;
-            const newSector = {
-                name: 'New Sector',
-                organization_id: organization['id'],
-            }
-            const [sector] = await sql<{id: string}[]>`INSERT INTO sectors ${sql(newSector)} RETURNING id`;
-            await sql`
-                UPDATE users
-                SET
-                    sector_id = ${sector['id']},
-                    role = 'MANAGER'
-                WHERE sub = ${sub}
-            `;
+            const newMembership = {
+                organizationId: organization.id,
+                userId: sub,
+                confirmed: true,
+            };
+            await sql`INSERT INTO memberships ${sql(newMembership)}`;
             return organization;
         });
         return res.status(201).json(organization);

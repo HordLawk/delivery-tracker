@@ -4,10 +4,10 @@ import { environment } from '../../environments/environment';
 import { Organization } from '../org.interface';
 
 const getOrganization = async () => {
-    const organizationsResponse = await fetch(`${environment.baseURL}/api/orgs`);
-    if(!organizationsResponse.ok) return;
+    const organizationsResponse = await fetch(`${environment.baseURL}/api/orgs?confirmed=true`);
+    if(!organizationsResponse.ok) return [];
     const organizations: Organization[] = await organizationsResponse.json();
-    return organizations[0];
+    return organizations;
 }
 
 @Component({
@@ -18,14 +18,14 @@ const getOrganization = async () => {
 })
 export class HomeComponent {
 
-    organization?: Organization;
+    organizations: Organization[] = [];
 
     createOrgForm = new FormGroup({
         name: new FormControl(''),
     });
 
     constructor(){
-        getOrganization().then(org => this.organization = org);
+        getOrganization().then(orgs => this.organizations = orgs);
     }
 
     async createOrganization() {
@@ -37,6 +37,6 @@ export class HomeComponent {
             }),
         });
         if(!organizationResponse.ok) return;
-        this.organization = await organizationResponse.json();
+        this.organizations.push(await organizationResponse.json());
     }
 }
