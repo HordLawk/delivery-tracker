@@ -14,8 +14,9 @@ import session from 'express-session';
 import { User } from './app/user.interface';
 import postgres from 'postgres';
 import * as jose from 'jose'
-import {body, query, validationResult} from 'express-validator'
+import {body, param, query, validationResult} from 'express-validator'
 import { Organization } from './app/org.interface';
+import { Member } from './app/member.interface';
 
 declare module 'express-session' {
     interface SessionData {
@@ -121,6 +122,7 @@ const selectUserItems = async (sub: string, id?: string) => {
             AND (m.role = 'MANAGER' OR m.sector_id = s.id)
             AND m.confirmed = TRUE
         WHERE m.user_id = ${sub} ${id ? sql`AND i.id = ${id}` : sql``}
+        ORDER BY created_at DESC
     `;
 }
 
@@ -188,7 +190,7 @@ app.get('/api/items', authMiddleware, async (req, res) => {
     return res.json(items);
 });
 
-app.get('/api/items/:id', query('id').isUUID(), handleValidation, authMiddleware, async (req, res) => {
+app.get('/api/items/:id', param('id').isUUID(), handleValidation, authMiddleware, async (req, res) => {
     if(!req.sub) return res.sendStatus(500);
     const [item] = await selectUserItems(req.sub, req.params['id']);
     return res.json(item);
@@ -203,8 +205,61 @@ app.get('/api/orgs', query('confirmed').isBoolean().toBoolean(), handleValidatio
         FROM organizations o
         INNER JOIN memberships m ON m.organization_id = o.id
         WHERE m.user_id = ${req.sub} AND m.confirmed = ${confirmed}
+        ORDER BY name
     `;
     return res.status(200).json(organizations);
+});
+
+app.get('/api/orgs/:id/members', param('id').isUUID(), handleValidation, authMiddleware, async (req, res) => {
+    if(!req.sub) return res.sendStatus(500);
+    const sub = req.sub;
+    const {id} = req.params as {id: string};
+    const [organization] = await sql<Organization[]>`SELECT * FROM organizations WHERE id = ${id}`;
+    if(!organization) return res.sendStatus(404);
+    const [membership] = await sql<Member[]>`
+        SELECT * FROM memberships
+        WHERE organization_id = ${id} AND user_id = ${sub} AND confirmed = TRUE
+    `;
+    if(!membership) return res.sendStatus(403);
+    const memberships = await sql<(Member & { name: string; pictureUrl: string; userCreatedAt: Date })[]>`
+        SELECT
+            m.*,
+            u.name,
+            u.picture_url,
+            u.created_at as user_created_at
+        FROM memberships m
+        INNER JOIN users u ON u.sub = m.user_id
+        WHERE m.organization_id = ${id} ${membership.role === 'MANAGER' ? sql`` : sql`AND m.confirmed = TRUE`}
+        ORDER BY u.name
+    `;
+    return res.status(200).json(
+        memberships.map(
+            ({
+                organizationId,
+                userId,
+                sectorId,
+                role,
+                confirmed,
+                createdAt,
+                name,
+                pictureUrl,
+                userCreatedAt,
+            }) => ({
+                organizationId,
+                userId,
+                sectorId,
+                role,
+                confirmed,
+                createdAt,
+                user: {
+                    sub,
+                    name: name,
+                    pictureUrl: pictureUrl,
+                    createdAt: userCreatedAt,
+                },
+            }),
+        ),
+    );
 });
 
 app.post(

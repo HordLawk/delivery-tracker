@@ -5,4 +5,5 @@ export interface Organization {
     name: string;
     ownerId: string;
     owner?: User;
+    createdAt: Date;
 }

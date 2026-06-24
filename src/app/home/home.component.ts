@@ -1,22 +1,19 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import {form, FormField} from '@angular/forms/signals';
 import { environment } from '../../environments/environment';
 import { Organization } from '../org.interface';
-
-const getOrganization = async () => {
-    const organizationsResponse = await fetch(`${environment.baseURL}/api/orgs?confirmed=true`);
-    if(!organizationsResponse.ok) return [];
-    const organizations: Organization[] = await organizationsResponse.json();
-    return organizations;
-}
+import { ApiService } from '../api.service';
+import { RouterLink } from '@angular/router';
 
 @Component({
     selector: 'app-home',
     templateUrl: './home.component.html',
     styleUrl: './home.component.css',
-    imports: [FormField],
+    imports: [FormField, RouterLink],
 })
 export class HomeComponent {
+
+    apiService = inject(ApiService);
 
     organizations = signal<Organization[]>([]);
 
@@ -27,7 +24,7 @@ export class HomeComponent {
     orgForm = form(this.orgModel);
 
     constructor(){
-        getOrganization().then(orgs => this.organizations.set(orgs));
+        this.apiService.getResources<Organization>('orgs?confirmed=true').then(orgs => this.organizations.set(orgs));
     }
 
     async createOrganization(event: Event) {

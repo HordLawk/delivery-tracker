@@ -14,6 +14,7 @@ interface Facility {
     name: string;
     sectorId: string;
     sector?: Sector;
+    createdAt: Date;
 }
 
 export interface Deliveryitem {
@@ -29,4 +30,5 @@ export interface Deliveryitem {
     originFacilityId: number;
     originFacility?: Facility;
     destinationAddress: string;
+    createdAt: Date;
 }

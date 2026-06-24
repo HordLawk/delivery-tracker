@@ -5,4 +5,5 @@ export interface Sector {
     name: string;
     organizationId: string;
     organization?: Organization;
+    createdAt: Date;
 }

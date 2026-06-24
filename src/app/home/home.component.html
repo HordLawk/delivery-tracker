@@ -1,6 +1,8 @@
 <section>
     @for(org of organizations(); track org.id) {
-        <h2>{{ org.name }}</h2>
+        <a [routerLink]="[org.id, 'members']">
+            <h2>{{ org.name }}</h2>
+        </a>
     }
     <form (submit)="createOrganization($event)">
         <label for="name">Name</label>
