@@ -253,8 +253,8 @@ app.get('/api/orgs/:id/members', param('id').isUUID(), handleValidation, authMid
                 createdAt,
                 user: {
                     sub,
-                    name: name,
-                    pictureUrl: pictureUrl,
+                    name,
+                    pictureUrl,
                     createdAt: userCreatedAt,
                 },
             }),
