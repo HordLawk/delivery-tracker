@@ -1,5 +1,12 @@
 <section>
+    <h1>Members</h1>
     @for(member of members(); track member.userId){
+        <h2>{{member.user?.name}}</h2>
+    }
+</section>
+<section>
+    <h1>Invited members</h1>
+    @for(member of invitedMembers(); track member.userId){
         <h2>{{member.user?.name}}</h2>
     }
 </section>

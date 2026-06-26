@@ -251,6 +251,7 @@ app.get('/api/orgs/:id/members', param('id').isUUID(), handleValidation, authMid
                 role,
                 confirmed,
                 createdAt,
+                organization,
                 user: {
                     sub,
                     name,
