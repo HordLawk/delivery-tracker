@@ -4,6 +4,7 @@ import { environment } from '../../environments/environment';
 import { Organization } from '../org.interface';
 import { ApiService } from '../api.service';
 import { RouterLink } from '@angular/router';
+import { Member } from '../member.interface';
 
 @Component({
     selector: 'app-home',
@@ -15,7 +16,7 @@ export class HomeComponent {
 
     apiService = inject(ApiService);
 
-    organizations = signal<Organization[]>([]);
+    memberships = signal<Member[]>([]);
 
     orgModel = signal<{name: string}>({
         name: '',
@@ -24,7 +25,9 @@ export class HomeComponent {
     orgForm = form(this.orgModel);
 
     constructor(){
-        this.apiService.getResources<Organization>('orgs?confirmed=true').then(orgs => this.organizations.set(orgs));
+        this.apiService
+            .getResources<Member>('memberships?confirmed=true')
+            .then(memberships => this.memberships.set(memberships));
     }
 
     async createOrganization(event: Event) {
@@ -37,7 +40,7 @@ export class HomeComponent {
             }),
         });
         if(!organizationResponse.ok) return;
-        const newOrg: Organization = await organizationResponse.json();
-        this.organizations.update(orgs => orgs.concat(newOrg));
+        const newMember: Member = await organizationResponse.json();
+        this.memberships.update(memberships => memberships.concat(newMember));
     }
 }

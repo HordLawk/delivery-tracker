@@ -20,7 +20,7 @@ export class MembersComponent {
 
     constructor(){
         this.apiService
-            .getResources<Member>(`orgs/${this.route.snapshot.paramMap.get('id')}/members`)
+            .getResources<Member>(`orgs/${this.route.snapshot.paramMap.get('id')}/memberships`)
             .then(m => {
                 this.members.set(m.filter(m2 => m2.confirmed));
                 this.invitedMembers.set(m.filter(m2 => !m2.confirmed));

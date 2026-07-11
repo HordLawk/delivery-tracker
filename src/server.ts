@@ -196,21 +196,53 @@ app.get('/api/items/:id', param('id').isUUID(), handleValidation, authMiddleware
     return res.json(item);
 });
 
-app.get('/api/orgs', query('confirmed').isBoolean().toBoolean(), handleValidation, authMiddleware, async (req, res) => {
+app.get('/api/memberships', query('confirmed').isBoolean().toBoolean(), handleValidation, authMiddleware, async (req, res) => {
     if(!req.sub) return res.sendStatus(500);
     const {confirmed} = req.query as unknown as {confirmed: boolean};
-    const organizations = await sql<Organization[]>`
+    const memberships = await sql<(
+        Member & { organizationName: string; organizationOwnerId: string; organizationCreatedAt: Date }
+    )[]>`
         SELECT
-            o.*
-        FROM organizations o
-        INNER JOIN memberships m ON m.organization_id = o.id
+            m.*,
+            o.name as organization_name,
+            o.owner_id as organization_owner_id,
+            o.created_at as organization_created_at
+        FROM memberships m
+        INNER JOIN organizations o ON o.id = m.organization_id
         WHERE m.user_id = ${req.sub} AND m.confirmed = ${confirmed}
-        ORDER BY name
+        ORDER BY o.name
     `;
-    return res.status(200).json(organizations);
+    return res.status(200).json(
+        memberships.map(
+            ({
+                organizationId,
+                userId,
+                sectorId,
+                role,
+                confirmed,
+                createdAt,
+                organizationName,
+                organizationOwnerId,
+                organizationCreatedAt,
+            }) => ({
+                organizationId,
+                userId,
+                sectorId,
+                role,
+                confirmed,
+                createdAt,
+                organization: {
+                    id: organizationId,
+                    name: organizationName,
+                    ownerId: organizationOwnerId,
+                    createdAt: organizationCreatedAt,
+                },
+            }),
+        ),
+    );
 });
 
-app.get('/api/orgs/:id/members', param('id').isUUID(), handleValidation, authMiddleware, async (req, res) => {
+app.get('/api/orgs/:id/memberships', param('id').isUUID(), handleValidation, authMiddleware, async (req, res) => {
     if(!req.sub) return res.sendStatus(500);
     const sub = req.sub;
     const {id} = req.params as {id: string};
@@ -272,7 +304,7 @@ app.post(
         if(!req.sub) return res.sendStatus(500);
         const sub = req.sub;
         const {name} = req.body as {name: string};
-        const organization = await sql.begin(async sql => {
+        const membership = await sql.begin(async sql => {
             const newOrg = {
                 name,
                 ownerId: sub,
@@ -283,10 +315,11 @@ app.post(
                 userId: sub,
                 confirmed: true,
             };
-            await sql`INSERT INTO memberships ${sql(newMembership)}`;
-            return organization;
+            const [membership] = await sql<Member[]>`INSERT INTO memberships ${sql(newMembership)} RETURNING *`;
+            membership.organization = organization;
+            return membership;
         });
-        return res.status(201).json(organization);
+        return res.status(201).json(membership);
     }
 );
 
