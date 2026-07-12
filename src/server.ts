@@ -91,10 +91,11 @@ const openidKeys = jose.createRemoteJWKSet(new URL(openidConfig.jwks_uri));
 
 const verifyToken = async (idToken: string) => {
     if(!idToken) throw new Error('Invalid token');
-    const {payload} = await jose.jwtVerify<jose.JWTPayload & {name: string, picture: string}>(idToken, openidKeys, {
-        audience: process.env['GOOGLE_CLIENT_ID'],
-        issuer: ['https://accounts.google.com', 'accounts.google.com'],
-    });
+    const {payload} = await jose
+        .jwtVerify<jose.JWTPayload & {name: string, picture: string, email: string}>(idToken, openidKeys, {
+            audience: process.env['GOOGLE_CLIENT_ID'],
+            issuer: ['https://accounts.google.com', 'accounts.google.com'],
+        });
     return payload;
 }
 
@@ -124,6 +125,25 @@ const selectUserItems = async (sub: string, id?: string) => {
         WHERE m.user_id = ${sub} ${id ? sql`AND i.id = ${id}` : sql``}
         ORDER BY created_at DESC
     `;
+}
+
+const selectMembership = async (sub: string, organizationId: string, options: {confirmed?: boolean, role?: string}) => {
+    const [membership] = await sql<Member[]>`
+        SELECT * FROM memberships
+        WHERE
+            organization_id = ${organizationId}
+            AND user_id = ${sub}
+            ${options.confirmed ? sql`AND confirmed = ${options.confirmed}` : sql``}
+            ${options.role ? sql`AND role = ${options.role}` : sql``}
+    `;
+    return membership;
+}
+
+const insertMembership = async (
+    options: {organizationId: string, userId: string, confirmed?: boolean, role?: string}
+) => {
+    const [membership] = await sql<Member[]>`INSERT INTO memberships ${sql(options)} RETURNING *`;
+    return membership;
 }
 
 const handleValidation = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -174,6 +194,7 @@ app.get('/auth/callback', query('code').notEmpty(), query('state').notEmpty(), h
             sub: decodedIdToken.sub,
             name: decodedIdToken.name,
             pictureUrl: decodedIdToken.picture,
+            email: decodedIdToken.email,
         }
         await sql`INSERT INTO users ${sql(newUser)}`;
     }
@@ -246,13 +267,10 @@ app.get('/api/orgs/:id/memberships', param('id').isUUID(), handleValidation, aut
     if(!req.sub) return res.sendStatus(500);
     const sub = req.sub;
     const {id} = req.params as {id: string};
-    const [organization] = await sql<Organization[]>`SELECT * FROM organizations WHERE id = ${id}`;
-    if(!organization) return res.sendStatus(404);
-    const [membership] = await sql<Member[]>`
-        SELECT * FROM memberships
-        WHERE organization_id = ${id} AND user_id = ${sub} AND confirmed = TRUE
-    `;
-    if(!membership) return res.sendStatus(403);
+    // const [organization] = await sql<Organization[]>`SELECT * FROM organizations WHERE id = ${id}`;
+    // if(!organization) return res.sendStatus(404);
+    const membership = await selectMembership(sub, id, {confirmed: true});
+    if(!membership) return res.sendStatus(404);
     const memberships = await sql<(Member & { name: string; pictureUrl: string; userCreatedAt: Date })[]>`
         SELECT
             m.*,
@@ -283,7 +301,7 @@ app.get('/api/orgs/:id/memberships', param('id').isUUID(), handleValidation, aut
                 role,
                 confirmed,
                 createdAt,
-                organization,
+                // organization,
                 user: {
                     sub,
                     name,
@@ -310,17 +328,41 @@ app.post(
                 ownerId: sub,
             };
             const [organization] = await sql<Organization[]>`INSERT INTO organizations ${sql(newOrg)} RETURNING *`;
-            const newMembership = {
+            const membership = await insertMembership({
                 organizationId: organization.id,
                 userId: sub,
                 confirmed: true,
-            };
-            const [membership] = await sql<Member[]>`INSERT INTO memberships ${sql(newMembership)} RETURNING *`;
+                role: 'MANAGER',
+            });
             membership.organization = organization;
             return membership;
         });
         return res.status(201).json(membership);
     }
+);
+
+app.post(
+    '/api/orgs/:id/memberships',
+    param('id').isUUID(),
+    body('email').trim().isEmail(),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {email} = req.body as {email: string};
+        const {id} = req.params as {id: string};
+        const membership = await selectMembership(sub, id, {confirmed: true, role: 'MANAGER'});
+        if(!membership) return res.sendStatus(404);
+        const [user] = await sql<User[]>`SELECT * FROM users WHERE email = ${email}`;
+        if(!user) return res.sendStatus(400);
+        const newMembership = await insertMembership({
+            organizationId: id,
+            userId: user.sub,
+        });
+        newMembership.user = user;
+        return res.status(201).json(newMembership);
+    },
 );
 
 /**

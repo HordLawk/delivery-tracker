@@ -1,7 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import {form, FormField} from '@angular/forms/signals';
 import { environment } from '../../environments/environment';
-import { Organization } from '../org.interface';
 import { ApiService } from '../api.service';
 import { RouterLink } from '@angular/router';
 import { Member } from '../member.interface';

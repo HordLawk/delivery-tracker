@@ -4,6 +4,8 @@
             <h2>{{ membership.organization?.name }}</h2>
         </a>
     }
+</section>
+<section>
     <form (submit)="createOrganization($event)">
         <label for="name">Name</label>
         <input id="name" type="text" [formField]="orgForm.name" />
