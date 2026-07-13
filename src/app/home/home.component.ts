@@ -31,15 +31,7 @@ export class HomeComponent {
 
     async createOrganization(event: Event) {
         event.preventDefault();
-        const organizationResponse = await fetch(`${environment.baseURL}/api/orgs`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                name: this.orgForm.name().value(),
-            }),
-        });
-        if(!organizationResponse.ok) return;
-        const newMember: Member = await organizationResponse.json();
-        this.memberships.update(memberships => memberships.concat(newMember));
+        const newMember = await this.apiService.createResource<Member>('orgs', {name: this.orgForm.name().value()});
+        if(newMember) this.memberships.update(memberships => memberships.concat(newMember));
     }
 }

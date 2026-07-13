@@ -37,15 +37,10 @@ export class MembersComponent {
 
     async inviteMember(event: Event) {
         event.preventDefault();
-        const membershipResponse = await fetch(`${environment.baseURL}/api/orgs/${this.route.snapshot.paramMap.get('id')}/memberships`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                email: this.inviteForm.email().value(),
-            }),
-        });
-        if(!membershipResponse.ok) return;
-        const newMember: Member = await membershipResponse.json();
-        this.invitedMembers.update(memberships => memberships.concat(newMember));
+        const newMember = await this.apiService.createResource<Member>(
+            `orgs/${this.route.snapshot.paramMap.get('id')}/memberships`,
+            {email: this.inviteForm.email().value()},
+        );
+        if(newMember) this.invitedMembers.update(memberships => memberships.concat(newMember));
     }
 }

@@ -341,12 +341,13 @@ app.post(
                 ownerId: sub,
             };
             const [organization] = await sql<Organization[]>`INSERT INTO organizations ${sql(newOrg)} RETURNING *`;
-            const membership = await insertMembership({
+            const newMember = {
                 organizationId: organization.id,
                 userId: sub,
                 confirmed: true,
                 role: 'MANAGER',
-            });
+            };
+            const [membership] = await sql<Member[]>`INSERT INTO memberships ${sql(newMember)} RETURNING *`;
             membership.organization = organization;
             return membership;
         });

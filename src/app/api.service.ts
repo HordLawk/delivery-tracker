@@ -9,4 +9,15 @@ export class ApiService {
         const documents: T[] = await response.json();
         return documents;
     }
+
+    async createResource<T>(url: string, data: any): Promise<T | null> {
+        const response = await fetch(`${environment.baseURL}/api/${url}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data),
+        });
+        if(!response.ok) return null;
+        const resource: T = await response.json();
+        return resource;
+    }
 }
