@@ -191,7 +191,12 @@ app.get('/auth/callback', query('code').notEmpty(), query('state').notEmpty(), h
         return res.status(500).json({ error: 'Failed to exchange code for tokens' });
     }
     const [user] = await sql<User[]>`SELECT * FROM users WHERE sub = ${decodedIdToken.sub}`;
-    if(!user){
+    if(user){
+        if(user.email !== decodedIdToken.email){
+            await sql`UPDATE users SET email = ${decodedIdToken.email} WHERE sub = ${user.sub}`;
+        }
+    }
+    else{
         const newUser = {
             sub: decodedIdToken.sub,
             name: decodedIdToken.name,
