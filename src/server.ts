@@ -127,7 +127,11 @@ const selectUserItems = async (sub: string, id?: string) => {
     `;
 }
 
-const selectMembership = async (sub: string, organizationId: string, options: {confirmed?: boolean, role?: string}) => {
+const selectMembership = async (
+    sub: string,
+    organizationId: string,
+    options: {confirmed?: boolean, role?: string} = {},
+) => {
     const [membership] = await sql<Member[]>`
         SELECT * FROM memberships
         WHERE
@@ -366,10 +370,12 @@ app.post(
         const sub = req.sub;
         const {email} = req.body as {email: string};
         const {id} = req.params as {id: string};
-        const membership = await selectMembership(sub, id, {confirmed: true, role: 'MANAGER'});
-        if(!membership) return res.status(404).json({error: 'Inviter membership not found or is not a manager'});
+        const ownMembership = await selectMembership(sub, id, {confirmed: true, role: 'MANAGER'});
+        if(!ownMembership) return res.status(404).json({error: 'Inviter membership not found or is not a manager'});
         const [user] = await sql<User[]>`SELECT * FROM users WHERE email = ${email}`;
-        if(!user) return res.status(400).json({error: 'User not found'});
+        if(!user) return res.status(400).json({error: 'No user with was found with the provided email'});
+        const membership = await selectMembership(sub, id);
+        if(membership) return res.status(400).json({error: 'User is already a member or has already been invited'});
         const newMembership = await insertMembership({
             organizationId: id,
             userId: user.sub,

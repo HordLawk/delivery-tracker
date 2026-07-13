@@ -10,13 +10,19 @@ export class ApiService {
         return documents;
     }
 
-    async createResource<T>(url: string, data: any): Promise<T | null> {
+    async createResource<T>(url: string, data: any): Promise<T> {
         const response = await fetch(`${environment.baseURL}/api/${url}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data),
         });
-        if(!response.ok) return null;
+        if(!response.ok){
+            const error = await response.json();
+            throw {
+                status: response.status,
+                response: error,
+            };
+        }
         const resource: T = await response.json();
         return resource;
     }

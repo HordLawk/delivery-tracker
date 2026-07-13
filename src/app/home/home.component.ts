@@ -31,7 +31,9 @@ export class HomeComponent {
 
     async createOrganization(event: Event) {
         event.preventDefault();
-        const newMember = await this.apiService.createResource<Member>('orgs', {name: this.orgForm.name().value()});
+        const newMember = await this.apiService
+            .createResource<Member>('orgs', {name: this.orgForm.name().value()})
+            .catch(console.error);
         if(newMember) this.memberships.update(memberships => memberships.concat(newMember));
     }
 }

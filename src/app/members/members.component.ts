@@ -45,10 +45,15 @@ export class MembersComponent {
 
     async inviteMember(event: Event) {
         event.preventDefault();
-        const newMember = await this.apiService.createResource<Member>(
-            `orgs/${this.route.snapshot.paramMap.get('id')}/memberships`,
-            {email: this.inviteForm.email().value()},
-        );
-        if(newMember) this.invitedMembers.update(memberships => memberships.concat(newMember));
+        this.apiService
+            .createResource<Member>(
+                `orgs/${this.route.snapshot.paramMap.get('id')}/memberships`,
+                {email: this.inviteForm.email().value()},
+            )
+            .then(newMember => this.invitedMembers.update(memberships => memberships.concat(newMember)))
+            .catch(err => {
+                if(err.status === 400 && err.response?.error) return alert(err.response.error);
+                console.error(err);
+            });
     }
 }
