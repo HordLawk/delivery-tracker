@@ -4,6 +4,7 @@ import { Member } from '../member.interface';
 import { ApiService } from '../api.service';
 import { ActivatedRoute } from '@angular/router';
 import { environment } from '../../environments/environment';
+import { MembershipsService } from '../memberships.service';
 
 @Component({
     selector: 'app-members',
@@ -16,7 +17,11 @@ export class MembersComponent {
 
     apiService = inject(ApiService);
 
+    membershipsService = inject(MembershipsService);
+
     members = signal<Member[]>([]);
+
+    ownMembership = signal<Member | null>(null);
 
     invitedMembers = signal<Member[]>([]);
 
@@ -33,6 +38,9 @@ export class MembersComponent {
                 this.members.set(m.filter(m2 => m2.confirmed));
                 this.invitedMembers.set(m.filter(m2 => !m2.confirmed));
             });
+        this.membershipsService
+            .getMembershipByOrganizationId(this.route.snapshot.paramMap.get('id') ?? '')
+            .then(m => this.ownMembership.set(m));
     }
 
     async inviteMember(event: Event) {

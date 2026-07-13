@@ -4,17 +4,19 @@
         <h2>{{member.user?.name}}</h2>
     }
 </section>
-<section>
-    <h1>Invited members</h1>
-    @for(member of invitedMembers(); track member.userId){
-        <h2>{{member.user?.name}}</h2>
-    }
-</section>
-<section>
-    <form (submit)="inviteMember($event)">
-        <label for="email">Email</label>
-        <input id="email" type="email" [formField]="inviteForm.email" />
+@if(ownMembership()?.role === 'MANAGER'){
+    <section>
+        <h1>Invited members</h1>
+        @for(member of invitedMembers(); track member.userId){
+            <h2>{{member.user?.name}}</h2>
+        }
+    </section>
+    <section>
+        <form (submit)="inviteMember($event)">
+            <label for="email">Email</label>
+            <input id="email" type="email" [formField]="inviteForm.email" />
 
-        <button type="submit">Invite Member</button>
-    </form>
-</section>
+            <button type="submit">Invite Member</button>
+        </form>
+    </section>
+}
