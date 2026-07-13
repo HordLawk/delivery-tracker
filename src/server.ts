@@ -187,7 +187,9 @@ app.get('/auth/callback', query('code').notEmpty(), query('state').notEmpty(), h
     }
     const tokens = await tokensResponse.json();
     const decodedIdToken = await verifyToken(tokens.id_token);
-    if(!decodedIdToken || !decodedIdToken.sub) return res.status(500).json({ error: 'Failed to exchange code for tokens' });
+    if(!decodedIdToken || !decodedIdToken.sub){
+        return res.status(500).json({ error: 'Failed to exchange code for tokens' });
+    }
     const [user] = await sql<User[]>`SELECT * FROM users WHERE sub = ${decodedIdToken.sub}`;
     if(!user){
         const newUser = {
@@ -217,51 +219,57 @@ app.get('/api/items/:id', param('id').isUUID(), handleValidation, authMiddleware
     return res.json(item);
 });
 
-app.get('/api/memberships', query('confirmed').isBoolean().toBoolean(), handleValidation, authMiddleware, async (req, res) => {
-    if(!req.sub) return res.sendStatus(500);
-    const {confirmed} = req.query as unknown as {confirmed: boolean};
-    const memberships = await sql<(
-        Member & { organizationName: string; organizationOwnerId: string; organizationCreatedAt: Date }
-    )[]>`
-        SELECT
-            m.*,
-            o.name as organization_name,
-            o.owner_id as organization_owner_id,
-            o.created_at as organization_created_at
-        FROM memberships m
-        INNER JOIN organizations o ON o.id = m.organization_id
-        WHERE m.user_id = ${req.sub} AND m.confirmed = ${confirmed}
-        ORDER BY o.name
-    `;
-    return res.status(200).json(
-        memberships.map(
-            ({
-                organizationId,
-                userId,
-                sectorId,
-                role,
-                confirmed,
-                createdAt,
-                organizationName,
-                organizationOwnerId,
-                organizationCreatedAt,
-            }) => ({
-                organizationId,
-                userId,
-                sectorId,
-                role,
-                confirmed,
-                createdAt,
-                organization: {
-                    id: organizationId,
-                    name: organizationName,
-                    ownerId: organizationOwnerId,
-                    createdAt: organizationCreatedAt,
-                },
-            }),
-        ),
-    );
-});
+app.get(
+    '/api/memberships',
+    query('confirmed').isBoolean().toBoolean(),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const {confirmed} = req.query as unknown as {confirmed: boolean};
+        const memberships = await sql<(
+            Member & { organizationName: string; organizationOwnerId: string; organizationCreatedAt: Date }
+        )[]>`
+            SELECT
+                m.*,
+                o.name as organization_name,
+                o.owner_id as organization_owner_id,
+                o.created_at as organization_created_at
+            FROM memberships m
+            INNER JOIN organizations o ON o.id = m.organization_id
+            WHERE m.user_id = ${req.sub} AND m.confirmed = ${confirmed}
+            ORDER BY o.name
+        `;
+        return res.status(200).json(
+            memberships.map(
+                ({
+                    organizationId,
+                    userId,
+                    sectorId,
+                    role,
+                    confirmed,
+                    createdAt,
+                    organizationName,
+                    organizationOwnerId,
+                    organizationCreatedAt,
+                }) => ({
+                    organizationId,
+                    userId,
+                    sectorId,
+                    role,
+                    confirmed,
+                    createdAt,
+                    organization: {
+                        id: organizationId,
+                        name: organizationName,
+                        ownerId: organizationOwnerId,
+                        createdAt: organizationCreatedAt,
+                    },
+                }),
+            ),
+        );
+    },
+);
 
 app.get('/api/orgs/:id/memberships', param('id').isUUID(), handleValidation, authMiddleware, async (req, res) => {
     if(!req.sub) return res.sendStatus(500);
