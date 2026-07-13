@@ -283,7 +283,7 @@ app.get('/api/orgs/:id/memberships', param('id').isUUID(), handleValidation, aut
     // const [organization] = await sql<Organization[]>`SELECT * FROM organizations WHERE id = ${id}`;
     // if(!organization) return res.sendStatus(404);
     const membership = await selectMembership(sub, id, {confirmed: true});
-    if(!membership) return res.sendStatus(404);
+    if(!membership) return res.status(404).json({error: 'Requester membership not found'});
     const memberships = await sql<(Member & { name: string; pictureUrl: string; userCreatedAt: Date })[]>`
         SELECT
             m.*,
@@ -366,9 +366,9 @@ app.post(
         const {email} = req.body as {email: string};
         const {id} = req.params as {id: string};
         const membership = await selectMembership(sub, id, {confirmed: true, role: 'MANAGER'});
-        if(!membership) return res.sendStatus(404);
+        if(!membership) return res.status(404).json({error: 'Inviter membership not found or is not a manager'});
         const [user] = await sql<User[]>`SELECT * FROM users WHERE email = ${email}`;
-        if(!user) return res.sendStatus(400);
+        if(!user) return res.status(400).json({error: 'User not found'});
         const newMembership = await insertMembership({
             organizationId: id,
             userId: user.sub,
