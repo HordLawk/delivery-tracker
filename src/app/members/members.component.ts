@@ -32,18 +32,17 @@ export class MembersComponent {
     inviteForm = form(this.inviteFormModel);
 
     constructor(){
+        const orgId = this.route.snapshot.paramMap.get('id');
         this.apiService
-            .getResources<Member>(`orgs/${this.route.snapshot.paramMap.get('id')}/memberships`)
+            .getResources<Member>(`orgs/${orgId}/memberships`)
             .then(m => {
                 this.members.set(m.filter(m2 => m2.confirmed));
                 this.invitedMembers.set(m.filter(m2 => !m2.confirmed));
             });
-        this.membershipsService
-            .getMembershipByOrganizationId(this.route.snapshot.paramMap.get('id') ?? '')
-            .then(m => this.ownMembership.set(m));
+        this.membershipsService.getMembershipByOrganizationId(orgId ?? '').then(m => this.ownMembership.set(m));
     }
 
-    async inviteMember(event: Event) {
+    inviteMember(event: Event) {
         event.preventDefault();
         this.apiService
             .createResource<Member>(
