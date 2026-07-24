@@ -1,0 +1,9 @@
+<section>
+    @for(invitation of invitations(); track invitation.organizationId){
+        <div>
+            <h2>{{ invitation.organization?.name }}</h2>
+            <button (click)="acceptInvitation(invitation.organizationId)">Accept</button>
+            <button>Reject</button>
+        </div>
+    }
+</section>

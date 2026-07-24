@@ -45,9 +45,9 @@ export class MembersComponent {
     inviteMember(event: Event) {
         event.preventDefault();
         this.apiService
-            .createResource<Member>(
+            .createOrUpdateResource<Member>(
                 `orgs/${this.route.snapshot.paramMap.get('id')}/memberships`,
-                {email: this.inviteForm.email().value()},
+                {data: {email: this.inviteForm.email().value()}},
             )
             .then(newMember => this.invitedMembers.update(memberships => memberships.concat(newMember)))
             .catch(err => {

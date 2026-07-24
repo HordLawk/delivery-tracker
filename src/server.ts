@@ -374,7 +374,7 @@ app.post(
         if(!ownMembership) return res.status(404).json({error: 'Inviter membership not found or is not a manager'});
         const [user] = await sql<User[]>`SELECT * FROM users WHERE email = ${email}`;
         if(!user) return res.status(400).json({error: 'No user with was found with the provided email'});
-        const membership = await selectMembership(sub, id);
+        const membership = await selectMembership(user.sub, id);
         if(membership) return res.status(400).json({error: 'User is already a member or has already been invited'});
         const newMembership = await insertMembership({
             organizationId: id,
@@ -382,6 +382,31 @@ app.post(
         });
         newMembership.user = user;
         return res.status(201).json(newMembership);
+    },
+);
+
+app.patch(
+    '/api/memberships/:orgId',
+    param('orgId').isUUID(),
+    body('confirmed').optional().isBoolean().toBoolean().equals('true'),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {confirmed} = req.body as {confirmed?: boolean};
+        const {orgId} = req.params as {orgId: string};
+        if(!confirmed) return res.sendStatus(204);
+        const [membership] = await sql`
+            UPDATE memberships
+            SET ${sql({confirmed})}
+            WHERE
+                user_id = ${sub}
+                AND organization_id = ${orgId}
+            RETURNING *
+        `;
+        if(!membership) return res.status(404).json({error: 'Membership not found'});
+        return res.sendStatus(205);
     },
 );
 

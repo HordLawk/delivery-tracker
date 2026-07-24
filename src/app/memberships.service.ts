@@ -8,8 +8,8 @@ export class MembershipsService {
 
     memberships: Member[] | null = null;
 
-    async getMemberships(): Promise<Member[] | null> {
-        if (!this.memberships) {
+    async getMemberships(force?: boolean): Promise<Member[] | null> {
+        if (!this.memberships || force) {
             const memberships = await this.apiService.getResources<Member>('memberships?confirmed=true');
             this.memberships = memberships;
         }

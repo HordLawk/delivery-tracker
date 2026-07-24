@@ -4,12 +4,18 @@ import { DetailsComponent } from './details/details.component';
 import { authGuard } from './auth.guard';
 import { DeliveriesComponent } from './deliveries/deliveries.component';
 import { MembersComponent } from './members/members.component';
+import { InvitesComponent } from './invites/invites.component';
 
 export const routes: Routes = [
     {
         path: '',
         component: HomeComponent,
         title: 'Home',
+        canActivate: [authGuard],
+    },
+    {
+        path: 'invites',
+        component: InvitesComponent,
         canActivate: [authGuard],
     },
     {
