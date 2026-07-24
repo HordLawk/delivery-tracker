@@ -1,10 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
 import {form, FormField} from '@angular/forms/signals';
-import { environment } from '../../environments/environment';
-import { ApiService } from '../api.service';
+import { environment } from '../../../environments/environment';
+import { ApiService } from '../../services/api.service';
 import { RouterLink } from '@angular/router';
-import { Member } from '../member.interface';
-import { MembershipsService } from '../memberships.service';
+import { Member } from '../../interfaces/member.interface';
+import { MembershipsService } from '../../services/memberships.service';
 
 @Component({
     selector: 'app-home',

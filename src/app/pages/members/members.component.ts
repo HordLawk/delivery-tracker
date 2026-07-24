@@ -1,10 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
 import {form, FormField} from '@angular/forms/signals';
-import { Member } from '../member.interface';
-import { ApiService } from '../api.service';
+import { Member } from '../../interfaces/member.interface';
+import { ApiService } from '../../services/api.service';
 import { ActivatedRoute } from '@angular/router';
-import { environment } from '../../environments/environment';
-import { MembershipsService } from '../memberships.service';
+import { environment } from '../../../environments/environment';
+import { MembershipsService } from '../../services/memberships.service';
 
 @Component({
     selector: 'app-members',

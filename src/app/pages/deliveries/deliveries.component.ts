@@ -1,7 +1,7 @@
 import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
-import { DeliveryItemComponent } from '../delivery-item/delivery-item.component';
-import { Deliveryitem } from '../deliveryitem.interface';
-import { DeliveriesService } from '../deliveries.service';
+import { DeliveryItemComponent } from '../../components/delivery-item/delivery-item.component';
+import { Deliveryitem } from '../../interfaces/deliveryitem.interface';
+import { DeliveriesService } from '../../services/deliveries.service';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
 @Component({

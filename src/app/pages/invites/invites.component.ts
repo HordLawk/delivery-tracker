@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
-import { Member } from '../member.interface';
-import { ApiService } from '../api.service';
-import { MembershipsService } from '../memberships.service';
+import { Member } from '../../interfaces/member.interface';
+import { ApiService } from '../../services/api.service';
+import { MembershipsService } from '../../services/memberships.service';
 
 @Component({
     selector: 'app-invites',

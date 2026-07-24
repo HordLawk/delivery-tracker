@@ -1,5 +1,5 @@
 import { inject, Service } from '@angular/core';
-import { Member } from './member.interface';
+import { Member } from '../interfaces/member.interface';
 import { ApiService } from './api.service';
 
 @Service()

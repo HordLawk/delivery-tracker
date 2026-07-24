@@ -1,7 +1,7 @@
 import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { Deliveryitem } from '../deliveryitem.interface';
-import { DeliveriesService } from '../deliveries.service';
+import { Deliveryitem } from '../../interfaces/deliveryitem.interface';
+import { DeliveriesService } from '../../services/deliveries.service';
 
 @Component({
   selector: 'app-details',

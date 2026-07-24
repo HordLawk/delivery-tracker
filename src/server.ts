@@ -7,16 +7,16 @@ import {
 import express from 'express';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Deliveryitem } from './app/deliveryitem.interface';
+import { Deliveryitem } from './app/interfaces/deliveryitem.interface';
 import cookieParser from 'cookie-parser';
 import crypto from 'node:crypto';
 import session from 'express-session';
-import { User } from './app/user.interface';
+import { User } from './app/interfaces/user.interface';
 import postgres from 'postgres';
 import * as jose from 'jose'
 import {body, param, query, validationResult} from 'express-validator'
-import { Organization } from './app/org.interface';
-import { Member } from './app/member.interface';
+import { Organization } from './app/interfaces/org.interface';
+import { Member } from './app/interfaces/member.interface';
 
 declare module 'express-session' {
     interface SessionData {
