@@ -1,5 +1,5 @@
 import { Component, input, ChangeDetectionStrategy } from '@angular/core';
-import { Deliveryitem } from '../../deliveryitem.interface';
+import { Deliveryitem } from '../../interfaces/deliveryitem.interface';
 import { RouterLink } from '@angular/router';
 
 @Component({

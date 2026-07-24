@@ -397,15 +397,29 @@ app.patch(
         const {confirmed} = req.body as {confirmed?: boolean};
         const {orgId} = req.params as {orgId: string};
         if(!confirmed) return res.sendStatus(204);
-        const [membership] = await sql`
+        const result = await sql`
             UPDATE memberships
             SET ${sql({confirmed})}
             WHERE
                 user_id = ${sub}
                 AND organization_id = ${orgId}
-            RETURNING *
         `;
-        if(!membership) return res.status(404).json({error: 'Membership not found'});
+        if(!result.count) return res.status(404).json({error: 'Membership not found'});
+        return res.sendStatus(205);
+    },
+);
+
+app.delete(
+    '/api/memberships/:orgId',
+    param('orgId').isUUID(),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {orgId} = req.params as {orgId: string};
+        const result = await sql`DELETE FROM memberships WHERE user_id = ${sub} AND organization_id = ${orgId}`;
+        if(!result.count) return res.status(404).json({error: 'Membership not found'});
         return res.sendStatus(205);
     },
 );
