@@ -5,30 +5,32 @@
     </form>
 </section>
 <section>
-    @for (item of deliveryItems; track $index) {
+    @for (item of deliveryItems(); track item.id) {
         <app-delivery-item [deliveryItem]="item" />
     }
 </section>
-<section>
-    <h2>Create delivery item</h2>
-    <form [formGroup]="applyForm" (submit)="submitDeliveryItem()">
-        <label for="name">Name</label>
-        <input id="name" type="text" formControlName="name" />
+@if(ownMembership()?.role === 'MANAGER'){
+    <section>
+        <h2>Create delivery item</h2>
+        <form (submit)="submitDeliveryItem($event)">
+            <label for="name">Name</label>
+            <input id="name" type="text" [formField]="newItemForm.name" />
 
-        <label for="description">Description</label>
-        <input id="description" type="text" formControlName="description" />
+            <label for="description">Description</label>
+            <input id="description" type="text" [formField]="newItemForm.description" />
 
-        <label for="price">Price</label>
-        <input id="price" type="number" formControlName="price" />
+            <label for="price">Price</label>
+            <input id="price" type="number" [formField]="newItemForm.price" />
 
-        <label for="weight">Weight</label>
-        <input id="weight" type="number" formControlName="weight" />
+            <label for="weight">Weight</label>
+            <input id="weight" type="number" [formField]="newItemForm.weight" />
 
-        <label for="originFacilityId">Origin Facility ID</label>
-        <input id="originFacilityId" type="number" formControlName="originFacilityId" />
+            <label for="originFacilityId">Origin Facility ID</label>
+            <input id="originFacilityId" type="number" [formField]="newItemForm.originFacilityId" />
 
-        <label for="destinationAddress">Destination Address</label>
-        <input id="destinationAddress" type="text" formControlName="destinationAddress" />
-        <button type="submit">Create Item</button>
-    </form>
-</section>
+            <label for="destinationAddress">Destination Address</label>
+            <input id="destinationAddress" type="text" [formField]="newItemForm.destinationAddress" />
+            <button type="submit">Create Item</button>
+        </form>
+    </section>
+}

@@ -17,6 +17,7 @@ import * as jose from 'jose'
 import {body, param, query, validationResult} from 'express-validator'
 import { Organization } from './app/interfaces/org.interface';
 import { Member } from './app/interfaces/member.interface';
+import { Facility } from './app/interfaces/facility.interface';
 
 declare module 'express-session' {
     interface SessionData {
@@ -110,7 +111,7 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
     }
 }
 
-const selectUserItems = async (sub: string, id?: string) => {
+const selectUserItems = async (sub: string, options: {id?: string, organizationId?: string}) => {
     return await sql<(Deliveryitem & {originFacilityName: string})[]>`
         SELECT
             i.*,
@@ -122,7 +123,10 @@ const selectUserItems = async (sub: string, id?: string) => {
             ON m.organization_id = s.organization_id
             AND (m.role = 'MANAGER' OR m.sector_id = s.id)
             AND m.confirmed = TRUE
-        WHERE m.user_id = ${sub} ${id ? sql`AND i.id = ${id}` : sql``}
+        WHERE
+            m.user_id = ${sub}
+            ${options.id ? sql`AND i.id = ${options.id}` : sql``}
+            ${options.organizationId ? sql`AND s.organization_id = ${options.organizationId}` : sql``}
         ORDER BY created_at DESC
     `;
 }
@@ -216,15 +220,15 @@ app.get('/auth/callback', query('code').notEmpty(), query('state').notEmpty(), h
     }).redirect(redirectUrl || '/');
 });
 
-app.get('/api/items', authMiddleware, async (req, res) => {
+app.get('/api/orgs/:id/items', param('id').isUUID(), handleValidation, authMiddleware, async (req, res) => {
     if(!req.sub) return res.sendStatus(500);
-    const items = await selectUserItems(req.sub);
+    const items = await selectUserItems(req.sub, {organizationId: req.params['id']});
     return res.json(items);
 });
 
 app.get('/api/items/:id', param('id').isUUID(), handleValidation, authMiddleware, async (req, res) => {
     if(!req.sub) return res.sendStatus(500);
-    const [item] = await selectUserItems(req.sub, req.params['id']);
+    const [item] = await selectUserItems(req.sub, {id: req.params['id']});
     return res.json(item);
 });
 
@@ -421,6 +425,66 @@ app.delete(
         const result = await sql`DELETE FROM memberships WHERE user_id = ${sub} AND organization_id = ${orgId}`;
         if(!result.count) return res.status(404).json({error: 'Membership not found'});
         return res.sendStatus(205);
+    },
+);
+
+app.post(
+    '/api/orgs/:id/items',
+    param('id').isUUID(),
+    body('name').trim().notEmpty().isLength({max: 256}),
+    body('description').optional().trim().isLength({max: 4096}),
+    body('price').isCurrency({allow_negatives: false}).toFloat(),
+    body('imageUrl').optional().isURL({require_protocol: true}),
+    body('startedAt').isAfter().toDate(),
+    body('weight').isDecimal().toFloat(),
+    body('originFacilityId').isUUID(),
+    body('destinationAddress').trim().notEmpty().isLength({max: 4096}),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {
+            name,
+            description,
+            price,
+            imageUrl,
+            startedAt,
+            weight,
+            originFacilityId,
+            destinationAddress,
+        } = req.body as {
+            name: string,
+            description: string,
+            price: number,
+            imageUrl: string,
+            startedAt: Date,
+            weight: number,
+            originFacilityId: string,
+            destinationAddress: string,
+        };
+        const membership = await selectMembership(sub, req.params['id'], {role: 'MANAGER'});
+        if(!membership) return res.status(404).json({error: 'Membership not found or user is not a manager'});
+        const [facility] = await sql<Facility[]>`
+            SELECT f.*
+            FROM facilities f
+            INNER JOIN sectors s ON f.sector_id = s.id
+            WHERE id = ${originFacilityId} AND s.organization_id = ${req.params['id']}
+        `;
+        if(!facility) return res.status(400).json({error: 'Invalid origin facility'});
+        const newItem = {
+            name,
+            description,
+            price,
+            imageUrl,
+            startedAt,
+            weight,
+            originFacilityId,
+            destinationAddress,
+        };
+        const [item] = await sql<Deliveryitem[]>`INSERT INTO items ${sql(newItem)} RETURNING *`;
+        item.originFacility = facility;
+        return res.status(201).json(item);
     },
 );
 

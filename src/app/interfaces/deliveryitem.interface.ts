@@ -1,4 +1,4 @@
-import { Sector } from "./sector.interface";
+import { Facility } from "./facility.interface";
 
 enum Status {
     Scheduled,
@@ -7,14 +7,6 @@ enum Status {
     AwaitingForm,
     AwaitingSignature,
     Completed,
-}
-
-interface Facility {
-    id: number;
-    name: string;
-    sectorId: string;
-    sector?: Sector;
-    createdAt: Date;
 }
 
 export interface Deliveryitem {

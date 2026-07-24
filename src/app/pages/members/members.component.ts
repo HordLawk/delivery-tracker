@@ -42,9 +42,9 @@ export class MembersComponent {
         this.membershipsService.getMembershipByOrganizationId(orgId ?? '').then(m => this.ownMembership.set(m));
     }
 
-    inviteMember(event: Event) {
+    async inviteMember(event: Event) {
         event.preventDefault();
-        this.apiService
+        await this.apiService
             .createOrUpdateResource<Member>(
                 `orgs/${this.route.snapshot.paramMap.get('id')}/memberships`,
                 {data: {email: this.inviteForm.email().value()}},
@@ -54,5 +54,6 @@ export class MembersComponent {
                 if(err.status === 400 && err.response?.error) return alert(err.response.error);
                 console.error(err);
             });
+        this.inviteForm().reset();
     }
 }

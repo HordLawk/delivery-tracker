@@ -1,44 +1,58 @@
-import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { DeliveryItemComponent } from '../../components/delivery-item/delivery-item.component';
 import { Deliveryitem } from '../../interfaces/deliveryitem.interface';
-import { DeliveriesService } from '../../services/deliveries.service';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { form, FormField } from '@angular/forms/signals';
+import { ApiService } from '../../services/api.service';
+import { ActivatedRoute } from '@angular/router';
+import { MembershipsService } from '../../services/memberships.service';
+import { Member } from '../../interfaces/member.interface';
 
 @Component({
   selector: 'app-deliveries',
-    imports: [DeliveryItemComponent, ReactiveFormsModule],
+    imports: [DeliveryItemComponent, FormField],
   templateUrl: './deliveries.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './deliveries.component.css'
 })
 export class DeliveriesComponent {
-    deliveryItems: Deliveryitem[] = [];
+    apiService = inject(ApiService);
 
-    deliveriesService = inject(DeliveriesService);
+    route = inject(ActivatedRoute);
 
-    applyForm = new FormGroup({
-        name: new FormControl(''),
-        description: new FormControl(''),
-        price: new FormControl(0),
-        weight: new FormControl(0),
-        originFacilityId: new FormControl(0),
-        destinationAddress: new FormControl(''),
+    membershipsService = inject(MembershipsService);
+    
+    ownMembership = signal<Member | null>(null);
+
+    deliveryItems = signal<Deliveryitem[]>([]);
+
+    newItemModel = signal({
+        name: '',
+        description: '',
+        price: 0,
+        weight: 0,
+        originFacilityId: '',
+        destinationAddress: '',
     });
 
+    newItemForm = form(this.newItemModel);
+
     constructor(){
-        this.deliveriesService.getAllDeliveryItems().then(items => this.deliveryItems = items);
+        const organizationId = this.route.snapshot.paramMap.get('id');
+        this.apiService
+            .getResources<Deliveryitem>(`orgs/${organizationId}/items`)
+            .then(items => this.deliveryItems.set(items));
+        this.membershipsService
+            .getMembershipByOrganizationId(organizationId ?? '')
+            .then(membership => this.ownMembership.set(membership));
     }
 
-    submitDeliveryItem(): void {
-        // this.deliveriesService.submitDeliveryItem(
-        //     this.applyForm.value.name ?? '',
-        //     this.applyForm.value.description ?? '',
-        //     this.applyForm.value.price ?? 0,
-        //     this.applyForm.value.weight ?? 0,
-        //     this.applyForm.value.originFacilityId ?? 0,
-        //     this.applyForm.value.destinationAddress ?? '',
-        // );
-        this.deliveriesService.getAllDeliveryItems().then(items => this.deliveryItems = items);
-        this.applyForm.reset();
+    async submitDeliveryItem(event: Event) {
+        event.preventDefault();
+        const newItem = await this.apiService.createOrUpdateResource<Deliveryitem>(
+            `orgs/${this.route.snapshot.paramMap.get('id')}/items`,
+            {data: this.newItemForm().value()},
+        );
+        this.deliveryItems.update(items => items.concat(newItem));
+        this.newItemForm().reset();
     }
 }

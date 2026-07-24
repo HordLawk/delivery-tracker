@@ -1,6 +1,6 @@
 <section>
     @for(membership of memberships(); track membership.organizationId) {
-        <a [routerLink]="[membership.organizationId, 'members']">
+        <a [routerLink]="[membership.organizationId]">
             <h2>{{ membership.organization?.name }}</h2>
         </a>
     }
