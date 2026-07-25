@@ -1,15 +1,23 @@
-<section>
-    @for(membership of memberships(); track membership.organizationId) {
-        <a [routerLink]="[membership.organizationId]">
-            <h2>{{ membership.organization?.name }}</h2>
-        </a>
-    }
-</section>
-<section>
-    <form (submit)="createOrganization($event)">
-        <label for="name">Name</label>
-        <input id="name" type="text" [formField]="orgForm.name" />
+<nav>
+    <section>
+        <a [routerLink]="['invites']">Invites</a>
+    </section>
+    <section>
+        @for(membership of memberships(); track membership.organizationId) {
+            <a [routerLink]="[membership.organizationId]">
+                <h2>{{ membership.organization?.name }}</h2>
+            </a>
+        }
+    </section>
+    <section>
+        <form (submit)="createOrganization($event)">
+            <label for="name">Name</label>
+            <input id="name" type="text" [formField]="orgForm.name" />
 
-        <button type="submit">Create Org</button>
-    </form>
-</section>
+            <button type="submit">Create Org</button>
+        </form>
+    </section>
+</nav>
+<main>
+    <router-outlet/>
+</main>

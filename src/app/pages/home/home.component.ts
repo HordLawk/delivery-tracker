@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import {form, FormField} from '@angular/forms/signals';
 import { environment } from '../../../environments/environment';
 import { ApiService } from '../../services/api.service';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { Member } from '../../interfaces/member.interface';
 import { MembershipsService } from '../../services/memberships.service';
 
@@ -10,9 +10,11 @@ import { MembershipsService } from '../../services/memberships.service';
     selector: 'app-home',
     templateUrl: './home.component.html',
     styleUrl: './home.component.css',
-    imports: [FormField, RouterLink],
+    imports: [FormField, RouterLink, RouterOutlet],
 })
 export class HomeComponent {
+
+    router = inject(Router);
 
     apiService = inject(ApiService);
 
@@ -27,8 +29,12 @@ export class HomeComponent {
     orgForm = form(this.orgModel);
 
     constructor(){
-        this.membershipsService.getMemberships()
-            .then(memberships => this.memberships.set(memberships ?? []));
+        this.membershipsService
+            .getMemberships()
+            .then(memberships => {
+                this.memberships.set(memberships ?? []);
+                this.router.navigate([memberships?.[0]?.organizationId ?? 'invites']);
+            });
     }
 
     async createOrganization(event: Event) {
