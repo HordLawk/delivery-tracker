@@ -1,4 +1,4 @@
-import { inject, Service } from '@angular/core';
+import { inject, Service, signal } from '@angular/core';
 import { Member } from '../interfaces/member.interface';
 import { ApiService } from './api.service';
 
@@ -6,18 +6,18 @@ import { ApiService } from './api.service';
 export class MembershipsService {
     apiService = inject(ApiService);
 
-    memberships: Member[] | null = null;
+    memberships = signal<Member[] | null>(null);
 
-    async getMemberships(force?: boolean): Promise<Member[] | null> {
-        if (!this.memberships || force) {
+    async getMemberships(force?: boolean) {
+        if (!this.memberships() || force) {
             const memberships = await this.apiService.getResources<Member>('memberships?confirmed=true');
-            this.memberships = memberships;
+            this.memberships.set(memberships);
         }
         return this.memberships;
     }
 
     async getMembershipByOrganizationId(organizationId: string): Promise<Member | null> {
         if(!this.memberships) await this.getMemberships();
-        return this.memberships?.find(m => m.organizationId === organizationId) ?? null;
+        return this.memberships()?.find(m => m.organizationId === organizationId) ?? null;
     }
 }

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, Signal, signal, WritableSignal } from '@angular/core';
 import {form, FormField} from '@angular/forms/signals';
 import { environment } from '../../../environments/environment';
 import { ApiService } from '../../services/api.service';
@@ -20,7 +20,7 @@ export class HomeComponent {
 
     membershipsService = inject(MembershipsService);
 
-    memberships = signal<Member[]>([]);
+    memberships = signal(signal<Member[] | null>(null));
 
     orgModel = signal<{name: string}>({
         name: '',
@@ -32,8 +32,8 @@ export class HomeComponent {
         this.membershipsService
             .getMemberships()
             .then(memberships => {
-                this.memberships.set(memberships ?? []);
-                this.router.navigate([memberships?.[0]?.organizationId ?? 'invites']);
+                this.memberships.set(memberships);
+                this.router.navigate([memberships()?.[0]?.organizationId ?? 'invites']);
             });
     }
 
@@ -42,9 +42,6 @@ export class HomeComponent {
         const newMember = await this.apiService
             .createOrUpdateResource<Member>('orgs', {data: {name: this.orgForm.name().value()}})
             .catch(console.error);
-        if(newMember){
-            this.memberships.update(memberships => memberships.concat(newMember));
-            await this.membershipsService.getMemberships(true);
-        }
+        if(newMember) this.memberships().update(memberships => memberships?.concat(newMember) ?? [newMember]);
     }
 }

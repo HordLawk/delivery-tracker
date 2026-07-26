@@ -22,11 +22,6 @@ export class InvitesComponent {
             .then(memberships => this.invitations.set(memberships));
     }
 
-    private async removeInvitation(orgId: string){
-        this.invitations.update(memberships => memberships.filter(m => m.organizationId !== orgId));
-        await this.membershipsService.getMemberships(true);
-    }
-
     async acceptInvitation(orgId: string){
         await this.apiService.createOrUpdateResource(
             `memberships/${orgId}`,
@@ -35,7 +30,8 @@ export class InvitesComponent {
                 method: 'PATCH',
             }
         );
-        await this.removeInvitation(orgId);
+        this.invitations.update(memberships => memberships.filter(m => m.organizationId !== orgId));
+        await this.membershipsService.getMemberships(true);
     }
 
     async rejectInvitation(orgId: string){
@@ -43,6 +39,6 @@ export class InvitesComponent {
             `memberships/${orgId}`,
             {method: 'DELETE'},
         );
-        await this.removeInvitation(orgId);
+        this.invitations.update(memberships => memberships.filter(m => m.organizationId !== orgId));
     }
 }
