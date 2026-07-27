@@ -3,8 +3,8 @@
         <a [routerLink]="['invites']">Invites</a>
     </section>
     <section>
-        @if(memberships() !== null){
-            @for(membership of memberships()(); track membership.organizationId) {
+        @if(membershipsService.memberships()){
+            @for(membership of membershipsService.memberships(); track membership.organizationId) {
                 <a [routerLink]="[membership.organizationId]">
                     <h2>{{ membership.organization?.name }}</h2>
                 </a>

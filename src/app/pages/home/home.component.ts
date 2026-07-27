@@ -20,8 +20,6 @@ export class HomeComponent {
 
     membershipsService = inject(MembershipsService);
 
-    memberships = signal(signal<Member[] | null>(null));
-
     orgModel = signal<{name: string}>({
         name: '',
     });
@@ -31,10 +29,7 @@ export class HomeComponent {
     constructor(){
         this.membershipsService
             .getMemberships()
-            .then(memberships => {
-                this.memberships.set(memberships);
-                this.router.navigate([memberships()?.[0]?.organizationId ?? 'invites']);
-            });
+            .then(memberships => this.router.navigate([memberships()?.[0]?.organizationId ?? 'invites']));
     }
 
     async createOrganization(event: Event) {
@@ -42,6 +37,8 @@ export class HomeComponent {
         const newMember = await this.apiService
             .createOrUpdateResource<Member>('orgs', {data: {name: this.orgForm.name().value()}})
             .catch(console.error);
-        if(newMember) this.memberships().update(memberships => memberships?.concat(newMember) ?? [newMember]);
+        if(newMember){
+            this.membershipsService.memberships.update(memberships => memberships?.concat(newMember) ?? [newMember])
+        };
     }
 }
