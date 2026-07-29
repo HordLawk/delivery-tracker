@@ -6,6 +6,8 @@ import { DeliveriesComponent } from './pages/deliveries/deliveries.component';
 import { MembersComponent } from './pages/members/members.component';
 import { InvitesComponent } from './pages/invites/invites.component';
 import { OrganizationComponent } from './pages/organization/organization.component';
+import { SectorsComponent } from './pages/sectors/sectors.component';
+import { SectorComponent } from './pages/sector/sector.component';
 
 export const routes: Routes = [
     {
@@ -16,12 +18,10 @@ export const routes: Routes = [
             {
                 path: 'invites',
                 component: InvitesComponent,
-                canActivate: [authGuard],
             },
             {
                 path: ':id',
                 component: OrganizationComponent,
-                canActivate: [authGuard],
                 children: [
                     {
                         path: '',
@@ -36,6 +36,14 @@ export const routes: Routes = [
                         path: 'deliveries',
                         component: DeliveriesComponent,
                     },
+                    {
+                        path: 'sectors',
+                        component: SectorsComponent,
+                    },
+                    {
+                        path: ':sectorId',
+                        component: SectorComponent,
+                    }
                 ],
             },
         ]

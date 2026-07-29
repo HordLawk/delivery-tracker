@@ -1,0 +1,14 @@
+<section>
+    @for(sector of sectors(); track sector.id){
+        <a [routerLink]="['..', sector.id]">{{sector.name}}</a>
+    }
+</section>
+@if(ownMembership()?.role === 'MANAGER'){
+    <section>
+        <form (submit)="submitSector($event)">
+            <label for="name">Name: </label>
+            <input id="name" [formField]="newSectorForm.name"/>
+            <button type="submit">Submit</button>
+        </form>
+    </section>
+}

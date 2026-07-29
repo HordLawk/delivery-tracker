@@ -18,6 +18,7 @@ import {body, param, query, validationResult} from 'express-validator'
 import { Organization } from './app/interfaces/org.interface';
 import { Member } from './app/interfaces/member.interface';
 import { Facility } from './app/interfaces/facility.interface';
+import { Sector } from './app/interfaces/sector.interface';
 
 declare module 'express-session' {
     interface SessionData {
@@ -284,55 +285,105 @@ app.get(
     },
 );
 
-app.get('/api/orgs/:id/memberships', param('id').isUUID(), handleValidation, authMiddleware, async (req, res) => {
-    if(!req.sub) return res.sendStatus(500);
-    const sub = req.sub;
-    const {id} = req.params as {id: string};
-    // const [organization] = await sql<Organization[]>`SELECT * FROM organizations WHERE id = ${id}`;
-    // if(!organization) return res.sendStatus(404);
-    const membership = await selectMembership(sub, id, {confirmed: true});
-    if(!membership) return res.status(404).json({error: 'Requester membership not found'});
-    const memberships = await sql<(Member & { name: string; pictureUrl: string; userCreatedAt: Date })[]>`
-        SELECT
-            m.*,
-            u.name,
-            u.picture_url,
-            u.created_at as user_created_at
-        FROM memberships m
-        INNER JOIN users u ON u.sub = m.user_id
-        WHERE m.organization_id = ${id} ${membership.role === 'MANAGER' ? sql`` : sql`AND m.confirmed = TRUE`}
-        ORDER BY u.name
-    `;
-    return res.status(200).json(
-        memberships.map(
-            ({
-                organizationId,
-                userId,
-                sectorId,
-                role,
-                confirmed,
-                createdAt,
-                name,
-                pictureUrl,
-                userCreatedAt,
-            }) => ({
-                organizationId,
-                userId,
-                sectorId,
-                role,
-                confirmed,
-                createdAt,
-                // organization,
-                user: {
-                    sub,
+app.get(
+    '/api/orgs/:id/memberships',
+    param('id').isUUID(),
+    query('sectorId').optional().isUUID(),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {id} = req.params as {id: string};
+        const {sectorId} = req.query as {sectorId: string};
+        // const [organization] = await sql<Organization[]>`SELECT * FROM organizations WHERE id = ${id}`;
+        // if(!organization) return res.sendStatus(404);
+        const membership = await selectMembership(sub, id, {confirmed: true});
+        if(!membership) return res.status(404).json({error: 'Requester membership not found'});
+        const memberships = await sql<(Member & { name: string; pictureUrl: string; userCreatedAt: Date })[]>`
+            SELECT
+                m.*,
+                u.name,
+                u.picture_url,
+                u.created_at as user_created_at
+            FROM memberships m
+            INNER JOIN users u ON u.sub = m.user_id
+            WHERE
+                m.organization_id = ${id}
+                ${sectorId ? sql`AND m.sector_id = ${sectorId}` : sql``}
+                ${membership.role === 'MANAGER' ? sql`` : sql`AND m.confirmed = TRUE`}
+            ORDER BY u.name
+        `;
+        return res.status(200).json(
+            memberships.map(
+                ({
+                    organizationId,
+                    userId,
+                    sectorId,
+                    role,
+                    confirmed,
+                    createdAt,
                     name,
                     pictureUrl,
-                    createdAt: userCreatedAt,
-                },
-            }),
-        ),
-    );
-});
+                    userCreatedAt,
+                }) => ({
+                    organizationId,
+                    userId,
+                    sectorId,
+                    role,
+                    confirmed,
+                    createdAt,
+                    // organization,
+                    user: {
+                        sub: userId,
+                        name,
+                        pictureUrl,
+                        createdAt: userCreatedAt,
+                    },
+                }),
+            ),
+        );
+    },
+);
+
+app.get(
+    '/api/orgs/:id/sectors',
+    param('id').isUUID(),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {id} = req.params as {id: string};
+        const membership = await selectMembership(sub, id, {confirmed: true});
+        if(!membership) return res.status(404).json({error: 'Requester membership not found'});
+        const sectors = await sql<Sector[]>`SELECT * FROM sectors WHERE organization_id = ${id}`;
+        return res.status(200).json(sectors);
+    },
+);
+
+app.get(
+    '/api/orgs/:id/facilities',
+    param('id').isUUID(),
+    query('sectorId').optional().isUUID(),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {id} = req.params as {id: string};
+        const {sectorId} = req.query as {sectorId?: string};
+        const membership = await selectMembership(sub, id, {confirmed: true});
+        if(!membership) return res.status(404).json({error: 'Requester membership not found'});
+        const [facilities] = await sql<Facility[]>`
+            SELECT f.*
+            FROM facilities f
+            INNER JOIN sectors s ON f.sector_id = s.id
+            WHERE s.organization_id = ${id} ${sectorId ? sql`AND s.id = ${sectorId}` : sql``}
+        `;
+        return res.status(200).json(facilities);
+    },
+);
 
 app.post(
     '/api/orgs',
@@ -389,45 +440,6 @@ app.post(
     },
 );
 
-app.patch(
-    '/api/memberships/:orgId',
-    param('orgId').isUUID(),
-    body('confirmed').optional().isBoolean().toBoolean().equals('true'),
-    handleValidation,
-    authMiddleware,
-    async (req, res) => {
-        if(!req.sub) return res.sendStatus(500);
-        const sub = req.sub;
-        const {confirmed} = req.body as {confirmed?: boolean};
-        const {orgId} = req.params as {orgId: string};
-        if(!confirmed) return res.sendStatus(204);
-        const result = await sql`
-            UPDATE memberships
-            SET ${sql({confirmed})}
-            WHERE
-                user_id = ${sub}
-                AND organization_id = ${orgId}
-        `;
-        if(!result.count) return res.status(404).json({error: 'Membership not found'});
-        return res.sendStatus(205);
-    },
-);
-
-app.delete(
-    '/api/memberships/:orgId',
-    param('orgId').isUUID(),
-    handleValidation,
-    authMiddleware,
-    async (req, res) => {
-        if(!req.sub) return res.sendStatus(500);
-        const sub = req.sub;
-        const {orgId} = req.params as {orgId: string};
-        const result = await sql`DELETE FROM memberships WHERE user_id = ${sub} AND organization_id = ${orgId}`;
-        if(!result.count) return res.status(404).json({error: 'Membership not found'});
-        return res.sendStatus(205);
-    },
-);
-
 app.post(
     '/api/orgs/:id/items',
     param('id').isUUID(),
@@ -472,19 +484,128 @@ app.post(
             WHERE id = ${originFacilityId} AND s.organization_id = ${req.params['id']}
         `;
         if(!facility) return res.status(400).json({error: 'Invalid origin facility'});
-        const newItem = {
-            name,
-            description,
-            price,
-            imageUrl,
-            startedAt,
-            weight,
-            originFacilityId,
-            destinationAddress,
-        };
+        const newItem = {name, description, price, imageUrl, startedAt, weight, originFacilityId, destinationAddress};
         const [item] = await sql<Deliveryitem[]>`INSERT INTO items ${sql(newItem)} RETURNING *`;
         item.originFacility = facility;
         return res.status(201).json(item);
+    },
+);
+
+app.post(
+    '/api/orgs/:id/facilities',
+    param('id').isUUID(),
+    body('name').trim().notEmpty().isLength({max: 256}),
+    body('sectorId').isUUID(),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {name, sectorId} = req.body as {name: string, sectorId: string};
+        const membership = await selectMembership(sub, req.params['id'], {role: 'MANAGER'});
+        if(!membership) return res.status(404).json({error: 'Membership not found or user is not a manager'});
+        const [sector] = await sql<Sector[]>`
+            SELECT *
+            FROM sectors
+            WHERE id = ${sectorId} AND organization_id = ${req.params['id']}
+        `;
+        if(!sector) return res.status(400).json({error: 'Invalid sector'});
+        const newFacility = {
+            name,
+            sectorId,
+        };
+        const [facility] = await sql<Facility[]>`INSERT INTO facilities ${sql(newFacility)} RETURNING *`;
+        facility.sector = sector;
+        return res.status(201).json(facility);
+    },
+);
+
+app.post(
+    '/api/orgs/:id/sectors',
+    param('id').isUUID(),
+    body('name').trim().notEmpty().isLength({max: 256}),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {name} = req.body as {name: string};
+        const membership = await selectMembership(sub, req.params['id'], {role: 'MANAGER'});
+        if(!membership) return res.status(404).json({error: 'Membership not found or user is not a manager'});
+        const newSector = {name, organizationId: req.params['id']};
+        const [sector] = await sql<Sector[]>`INSERT INTO sectors ${sql(newSector)} RETURNING *`;
+        return res.status(201).json(sector);
+    },
+);
+
+app.patch(
+    '/api/memberships/:orgId',
+    param('orgId').isUUID(),
+    body('confirmed').isBoolean().toBoolean().equals('true'),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {confirmed} = req.body as {confirmed: boolean};
+        const {orgId} = req.params as {orgId: string};
+        const result = await sql`
+            UPDATE memberships
+            SET ${sql({confirmed})}
+            WHERE
+                user_id = ${sub}
+                AND organization_id = ${orgId}
+        `;
+        if(!result.count) return res.status(404).json({error: 'Membership not found'});
+        return res.sendStatus(205);
+    },
+);
+
+app.patch(
+    '/api/orgs/:orgId/memberships/:userId',
+    param('orgId').isUUID(),
+    param('userId').trim().notEmpty().isLength({max: 255}),
+    body('sectorId').optional().isUUID(),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {orgId, userId} = req.params as {orgId: string, userId: string};
+        const {sectorId} = req.body as {sectorId?: string};
+        if(!sectorId) return res.sendStatus(204);
+        const ownMembership = await selectMembership(sub, orgId, {role: 'MANAGER'});
+        if(!ownMembership) return res.status(404).json({error: 'Membership not found or user is not a manager'});
+        if(sectorId){
+            const [sector] = await sql<Sector[]>`
+                SELECT *
+                FROM sectors
+                WHERE id = ${sectorId} AND organization_id = ${orgId}
+            `;
+            if(!sector) return res.status(400).json({error: 'Invalid sector'});
+        }
+        const result = await sql`
+            UPDATE memberships
+            SET ${sql({sectorId})}
+            WHERE organization_id = ${orgId} AND user_id = ${userId}
+        `;
+        if(!result.count) return res.status(404).json({error: 'Membership not found'});
+        return res.sendStatus(205);
+    },
+);
+
+app.delete(
+    '/api/memberships/:orgId',
+    param('orgId').isUUID(),
+    handleValidation,
+    authMiddleware,
+    async (req, res) => {
+        if(!req.sub) return res.sendStatus(500);
+        const sub = req.sub;
+        const {orgId} = req.params as {orgId: string};
+        const result = await sql`DELETE FROM memberships WHERE user_id = ${sub} AND organization_id = ${orgId}`;
+        if(!result.count) return res.status(404).json({error: 'Membership not found'});
+        return res.sendStatus(205);
     },
 );
 

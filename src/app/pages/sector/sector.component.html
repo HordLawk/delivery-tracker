@@ -1,0 +1,24 @@
+<section>
+    <h2>Facilities</h2>
+    <ul>
+        @for(facility of facilities(); track facility.id){
+            <li>{{facility.name}}</li>
+        }
+    </ul>
+    @if(ownMembership()?.role === 'MANAGER'){
+        <form (submit)="submitFacility($event)">
+            <label for="name">Name:</label>
+            <input id="name" [formField]="newFacilityForm.name"/>
+
+            <button type="submit">Submit</button>
+        </form>
+    }
+</section>
+<section>
+    <h2>Members</h2>
+    <ul>
+        @for(member of members(); track member.userId){
+            <li>{{member.user?.name}}</li>
+        }
+    </ul>
+</section>

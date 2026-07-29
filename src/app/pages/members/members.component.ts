@@ -1,10 +1,11 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, linkedSignal, signal } from '@angular/core';
 import {form, FormField} from '@angular/forms/signals';
 import { Member } from '../../interfaces/member.interface';
 import { ApiService } from '../../services/api.service';
 import { ActivatedRoute } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { MembershipsService } from '../../services/memberships.service';
+import { Sector } from '../../interfaces/sector.interface';
 
 @Component({
     selector: 'app-members',
@@ -21,11 +22,13 @@ export class MembersComponent {
 
     members = signal<Member[]>([]);
 
+    sectors = signal<Sector[]>([]);
+
     ownMembership = signal<Member | null>(null);
 
     invitedMembers = signal<Member[]>([]);
 
-    inviteFormModel = signal<{email: string}>({
+    inviteFormModel = signal({
         email: '',
     });
 
@@ -39,7 +42,8 @@ export class MembersComponent {
                 this.members.set(m.filter(m2 => m2.confirmed));
                 this.invitedMembers.set(m.filter(m2 => !m2.confirmed));
             });
-        this.membershipsService.getMembershipByOrganizationId(orgId ?? '').then(m => this.ownMembership.set(m));
+        this.apiService.getResources<Sector>(`orgs/${orgId}/sectors`).then(this.sectors.set);
+        this.membershipsService.getMembershipByOrganizationId(orgId ?? '').then(this.ownMembership.set);
     }
 
     async inviteMember(event: Event) {
@@ -55,5 +59,21 @@ export class MembersComponent {
                 console.error(err);
             });
         this.inviteForm().reset();
+    }
+
+    async selectMemberSector(event: Event, userId: string){
+        const target = event.target as HTMLSelectElement;
+        await this.apiService.createOrUpdateResource(
+            `orgs/${this.route.snapshot.paramMap.get('id')}/memberships/${userId}`,
+            {
+                method: 'PATCH',
+                data: {sectorId: target.value},
+            },
+        );
+        this.members.update(members => {
+            const member = members.find(m => m.userId === userId)
+            if(member) member.sectorId = target.value;
+            return members;
+        });
     }
 }
