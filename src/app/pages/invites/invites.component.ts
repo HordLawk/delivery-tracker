@@ -17,9 +17,7 @@ export class InvitesComponent {
     invitations = signal<Member[]>([]);
 
     constructor(){
-        this.apiService
-            .getResources<Member>('memberships?confirmed=false')
-            .then(memberships => this.invitations.set(memberships));
+        this.apiService.getResources<Member>('memberships?confirmed=false').then(this.invitations.set);
     }
 
     async acceptInvitation(orgId: string){
