@@ -1,6 +1,5 @@
 import { Component, inject, Signal, signal, WritableSignal } from '@angular/core';
 import {form, FormField} from '@angular/forms/signals';
-import { environment } from '../../../environments/environment';
 import { ApiService } from '../../services/api.service';
 import { ActivatedRoute, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { Member } from '../../interfaces/member.interface';
@@ -13,6 +12,7 @@ import { MembershipsService } from '../../services/memberships.service';
     imports: [FormField, RouterLink, RouterOutlet],
 })
 export class HomeComponent {
+    route = inject(ActivatedRoute);
 
     router = inject(Router);
 
@@ -20,7 +20,7 @@ export class HomeComponent {
 
     membershipsService = inject(MembershipsService);
 
-    orgModel = signal<{name: string}>({
+    orgModel = signal({
         name: '',
     });
 
@@ -29,7 +29,11 @@ export class HomeComponent {
     constructor(){
         this.membershipsService
             .getMemberships()
-            .then(memberships => this.router.navigate([memberships()?.[0]?.organizationId ?? 'invites']));
+            .then(memberships => {
+                if(!this.route.snapshot.firstChild){
+                    this.router.navigate([memberships()?.[0]?.organizationId ?? 'invites']);
+                }
+            });
     }
 
     async createOrganization(event: Event) {
@@ -38,7 +42,8 @@ export class HomeComponent {
             .createOrUpdateResource<Member>('orgs', {data: {name: this.orgForm.name().value()}})
             .catch(console.error);
         if(newMember){
-            this.membershipsService.memberships.update(memberships => memberships?.concat(newMember) ?? [newMember])
-        };
+            this.membershipsService.memberships.update(memberships => memberships?.concat(newMember) ?? [newMember]);
+        }
+        this.orgForm().reset();
     }
 }
