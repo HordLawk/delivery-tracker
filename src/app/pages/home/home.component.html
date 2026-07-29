@@ -1,8 +1,8 @@
 <nav>
-    <section>
+    <div>
         <a [routerLink]="['invites']">Invites</a>
-    </section>
-    <section>
+    </div>
+    <div>
         @if(membershipsService.memberships()){
             @for(membership of membershipsService.memberships(); track membership.organizationId) {
                 <a [routerLink]="[membership.organizationId]">
@@ -10,15 +10,13 @@
                 </a>
             }
         }
-    </section>
-    <section>
-        <form (submit)="createOrganization($event)">
-            <label for="name">Name</label>
-            <input id="name" type="text" [formField]="orgForm.name" />
+    </div>
+    <form (submit)="createOrganization($event)">
+        <label for="name">Name</label>
+        <input id="name" type="text" [formField]="orgForm.name" />
 
-            <button type="submit">Create Org</button>
-        </form>
-    </section>
+        <button type="submit">Create Org</button>
+    </form>
 </nav>
 <main>
     <router-outlet/>
