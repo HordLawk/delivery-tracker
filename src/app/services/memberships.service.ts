@@ -17,7 +17,7 @@ export class MembershipsService {
     }
 
     async getMembershipByOrganizationId(organizationId: string): Promise<Member | null> {
-        if(!this.memberships) await this.getMemberships();
+        if(!this.memberships()) await this.getMemberships();
         return this.memberships()?.find(m => m.organizationId === organizationId) ?? null;
     }
 }
