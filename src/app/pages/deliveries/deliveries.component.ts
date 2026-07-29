@@ -37,13 +37,11 @@ export class DeliveriesComponent {
     newItemForm = form(this.newItemModel);
 
     constructor(){
-        const organizationId = this.route.snapshot.paramMap.get('id');
-        this.apiService
-            .getResources<Deliveryitem>(`orgs/${organizationId}/items`)
-            .then(items => this.deliveryItems.set(items));
-        this.membershipsService
-            .getMembershipByOrganizationId(organizationId ?? '')
-            .then(membership => this.ownMembership.set(membership));
+        this.route.paramMap.subscribe(param => {
+            const organizationId = param.get('id');
+            this.apiService.getResources<Deliveryitem>(`orgs/${organizationId}/items`).then(this.deliveryItems.set);
+            this.membershipsService.getMembershipByOrganizationId(organizationId ?? '').then(this.ownMembership.set);
+        });
     }
 
     async submitDeliveryItem(event: Event) {
